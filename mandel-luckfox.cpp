@@ -13,7 +13,7 @@
 #include "mandel-arch.h"
 extern void log_msg(const char *s, ...);
 
-uint16_t *tft_canvas; // must not be static?!
+CANVAS_TYPE *tft_canvas; // must not be static?!
 extern int img_w, img_h;
 
 static int fd;
@@ -36,17 +36,26 @@ void init_luckfox(void)
     img_w = fb_var.xres;
     img_h = fb_var.yres;
     log_msg("%s: img = %dx%d\n", __FUNCTION__, img_w, img_h);
-    tft_canvas = (uint16_t *)mmap(NULL, (img_w * img_h) << 1, PROT_WRITE | PROT_READ, MAP_SHARED, fd, 0);
+#ifdef FB_DEVICE    
+    tft_canvas = (CANVAS_TYPE *)mmap(NULL, (img_w * img_h) << 1, PROT_WRITE | PROT_READ, MAP_SHARED, fd, 0);
     if (tft_canvas == MAP_FAILED)
     {
         log_msg("mmap failed - errno = %d\n", errno);
         tft_canvas = NULL;
         return;
     }
-    memset(tft_canvas, 0, (img_w * img_h) << 1);
+#else
+    tft_canvas = new CANVAS_TYPE[img_w * img_h]();
+    if (!tft_canvas)
+    {
+        log_msg("%s: canvas malloc() failed.\n", __FUNCTION__);
+        return;
+    }
+#endif
+    memset(tft_canvas, 0, (img_w * img_h) * sizeof(CANVAS_TYPE));
 }
 
-void luckfox_palette(uint16_t *col_pal)
+void luckfox_palette(int *col_pal)
 {
 #if 0    
     int c = 0;
@@ -64,6 +73,7 @@ void luckfox_palette(uint16_t *col_pal)
         
     return;
 #endif
+#ifdef COL16BIT
     uint16_t i, t;
     for (i = 0; i < 16; i++)
     {
@@ -77,21 +87,37 @@ void luckfox_palette(uint16_t *col_pal)
     {
         memcpy(col_pal + i * 64, col_pal, sizeof(uint16_t) * 64);
     }
+#else
+    int i, t;
+    for (i = 0; i < 128; i++)
+    {
+        t = i << 1;
+        col_pal[i] = t;
+        col_pal[128 + i] = ((255 - t) | (t << 8));
+        col_pal[256 + i] = ((255 - t) << 8) | (t << 16);
+        col_pal[384 + i] = ((255 - t) << 16);
+    }
+    for (i = 1; i < 4; i++)
+    {
+        memcpy(col_pal + i * 512, col_pal, sizeof(int) * 512);
+    }
+#endif
 }
 
-void luckfox_rect(int x1, int y1, int x2, int y2, uint16_t c)
+void luckfox_rect(int x1, int y1, int x2, int y2, int c)
 {
-    for (int x = x1; x <= x2; x ++)
-	for (int y = y1; y <= y2; y++)
-	    luckfox_setpx(NULL, x, y, c);
+    for (int x = x1; x <= x2; x++)
+	    for (int y = y1; y <= y2; y++)
+	        luckfox_setpx(NULL, x, y, c);
 }
 
-void luckfox_setpx(void *canvas, int x, int y, uint16_t c)
+void luckfox_setpx(void *canvas, int x, int y, int c)
 {
     if (!tft_canvas)
 	return;
 //    pthread_mutex_lock(&logmutex);
     tft_canvas[x + y * IMG_W] = c;
+    //log_msg("%s: (%d,%d) = %d\n", __FUNCTION__, x, y, c);
 //    pthread_mutex_unlock(&logmutex);
 }
 
@@ -104,16 +130,43 @@ uint16_t convertToBGR565(const cv::Vec3b& bgr_pixel)
     return ((blue << 11) | (green << 5) | (red ));   // Pack into 16 bits
 }
 
+cv::Mat convertRGB565toCV8UC3(const uint16_t* data, int width, int height) {
+    cv::Mat mat8bit(height, width, CV_8UC3);
+
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            uint16_t pixel = data[y * width + x];
+            uint8_t r = (pixel & 0x1F) << 3;         // Extract blue and scale to 8 bits
+            uint8_t g = ((pixel >> 5) & 0x3F) << 2;   // Extract green and scale to 8 bits
+            uint8_t b = ((pixel >> 11) & 0x1F) << 3;  // Extract red and scale to 8 bits
+
+            mat8bit.at<cv::Vec3b>(y, x) = cv::Vec3b(b, g, r);
+        }
+    }
+
+    return mat8bit;
+}
+
+cv::Mat convert24bitBGRtoCV8UC3(const CANVAS_TYPE *data, int width, int height) {
+    // Create the Mat header without copying data
+    cv::Mat mat8bit(height, width, CV_8UC4, const_cast<CANVAS_TYPE *>(data));
+
+    // Create a deep copy if you need to modify the Mat independently of the original data
+    // This avoids potential issues if the original data is freed or modified later.
+    return mat8bit.clone(); 
+}
+
 void luckfox_play(void)
 {
+    CANVAS_TYPE *mask = new CANVAS_TYPE[img_w * img_h];
+    memcpy(mask, tft_canvas, img_h * img_w * sizeof(CANVAS_TYPE));
+#if VIDEO_CAPTURE    
     cv::VideoCapture cap;
     cv::Mat bgr(img_h, img_w, CV_8UC3); 
     cv::Mat disp;
     cap.set(cv::CAP_PROP_FRAME_WIDTH,  img_w);
     cap.set(cv::CAP_PROP_FRAME_HEIGHT, img_h);
     cap.open(0);
-    uint16_t *mask = new uint16_t[img_w * img_h];
-    memcpy(mask, tft_canvas, img_h * img_w * 2);
     while (1)
     {
         cap >> bgr;
@@ -123,5 +176,16 @@ void luckfox_play(void)
                                     if (!mask[idx])
                                         tft_canvas[idx] = convertToBGR565(p); });
     }
+#else
+#ifdef COL16BIT
+    cv::Mat img = convertRGB565toCV8UC3(mask, img_w, img_h);
+#else
+    cv::Mat img = convert24bitBGRtoCV8UC3(mask, img_w, img_h);
+#endif
+    cv::imshow("Mandelbrot", img);                            
+         
+#endif
+    cv::waitKey(0);
+
     delete[] mask;
 }

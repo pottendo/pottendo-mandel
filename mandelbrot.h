@@ -69,9 +69,9 @@ extern pthread_mutex_t canvas_sem;
 template <typename myDOUBLE>
 class mandel
 {
-    typedef char *canvas_t;
+    typedef CANVAS_TYPE *canvas_t;
     typedef uint16_t coord_t;
-    typedef uint16_t color_t;
+    typedef int color_t;
     struct tparam_t
     {
         int tno, width, height;
@@ -426,8 +426,9 @@ public:
 #ifdef LUCKFOX
 	luckfox_palette(col_pal);
 	int c1 = 0;
-	for (int i = 0; i < 320; i += 2, c1++)
-	    luckfox_rect(i, 0, i+1, 240, col_pal[c1]);
+	for (int i = 0; i < xr; i += 2, c1++)
+	    luckfox_rect(i, 0, i+1, yr -1 , col_pal[c1]);
+    
 #else	
         for (int i = 0; i < PAL_SIZE; i++)
             col_pal[i] = i;

@@ -1,9 +1,9 @@
 #ifndef __MANDEL_ARCH_H__
 #define __MANDEL_ARCH_H__
 /* definition section for globals to adapt for some variation */
-#define MTYPE double long long int  // double
-#define INTMATH              // goes along with int above, on Intels or other fast FPUs, double/float can be faster
-#define MAX_ITER_INIT 64
+#define MTYPE double //long long int  // double
+//#define INTMATH              // goes along with int above, on Intels or other fast FPUs, double/float can be faster
+#define MAX_ITER_INIT 512
 //#define C64   // build for C64 GFX output
 
 // some global internals, no need to change normally
@@ -17,8 +17,10 @@
 #define INTIFY2(a) (a)
 #define DEINTIFY(a) (a)
 #endif
+#define COL16BIT
+#define CANVAS_TYPE uint16_t
 #define alloc_stack new char[STACK_SIZE * NO_THREADS]()
-#define alloc_canvas new char[CSIZE]()
+#define alloc_canvas new CANVAS_TYPE[CSIZE]()
 
 void log_msg(const char *s, ...);
 //#define NO_LOG
@@ -30,7 +32,7 @@ void log_msg(const char *s, ...);
 #include <stdio.h>
 #include <time.h>
 #include <pthread.h>
-#define NO_THREADS 16 // max 16 for Orangecart!
+#define NO_THREADS 4 // max 16 for Orangecart!
 #ifdef PTHREAD_STACK_MIN
 #define STACK_SIZE PTHREAD_STACK_MIN
 #else
@@ -98,7 +100,7 @@ void amiga_zoom_ui(mandel<MTYPE> *m);
 #ifdef LUCKFOX
 #define IMG_W img_w
 #define IMG_H img_h
-#define SCRDEPTH 16  // or 6 for 64cols lesser resolution
+#define SCRDEPTH 24  // or 6 for 64cols lesser resolution
 #define PAL_SIZE (1L << SCRDEPTH)
 #define PIXELW 1
 #define CSIZE (img_w * img_h) / 8
@@ -110,13 +112,13 @@ void amiga_zoom_ui(mandel<MTYPE> *m);
 
 #include <stdint.h>
 
-extern uint16_t *tft_canvas;		// must not be static?!
+extern CANVAS_TYPE *tft_canvas;		// must not be static?!
 
-void luckfox_setpx(void *canvas, int x, int y, uint16_t c);
+void luckfox_setpx(void *canvas, int x, int y, int c);
 void init_luckfox(void);
-void luckfox_palette(uint16_t *p);
+void luckfox_palette(int *p);
 void luckfox_play(void);
-void luckfox_rect(int x1, int y1, int x2, int y2, uint16_t c);
+void luckfox_rect(int x1, int y1, int x2, int y2, int c);
 
 #define zoom_ui(...) luckfox_play()
 #define setup_screen init_luckfox
@@ -157,8 +159,8 @@ extern char *c64_stack;
 #endif
 
 #else // non-specific architectures 
-#define IMG_W 256
-#define IMG_H 120
+#define IMG_W 120
+#define IMG_H 80
 #define SCRDEPTH 2
 #define CSIZE ((IMG_W/8) * IMG_H)
 #define PAL_SIZE (1L << SCRDEPTH)

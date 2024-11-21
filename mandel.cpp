@@ -15,7 +15,7 @@ void log_msg(const char *s, ...)
     pthread_mutex_lock(&logmutex);
     va_start(args, s);
     vsnprintf(t, 256, s, args);
-    printf(t);
+    printf("%s", t);
     pthread_mutex_unlock(&logmutex);
 }
 #endif  /* PTHREADS */
@@ -25,7 +25,7 @@ int img_w, img_h;   // used by luckfox
 int iter = MAX_ITER_INIT;  // used by Amiga
 MTYPE xrat = 1.0;
 
-static char *cv;
+static CANVAS_TYPE *cv;
 static char *stacks;
 
 #include "mandelbrot.h"
@@ -74,7 +74,7 @@ std::vector<rec_t> recs = {
                                             static_cast<MTYPE>(INTIFY(0.5)), static_cast<MTYPE>(INTIFY(1.0)), 
                                             IMG_W / PIXELW, IMG_H, xrat};
         zoom_ui(m);
-        //return 0;
+        return 0;
         for (size_t i = 0; i < recs.size(); i++)
         {
             auto it = &recs[i];
