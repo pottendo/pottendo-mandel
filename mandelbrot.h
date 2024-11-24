@@ -426,8 +426,8 @@ public:
 #ifdef LUCKFOX
 	luckfox_palette(col_pal);
 	int c1 = 0;
-	for (int i = 0; i < xr; i += 2, c1++)
-	    luckfox_rect(i, 0, i+1, yr -1 , col_pal[c1]);
+	for (int i = 0; i < xr - 2; i += 2, c1++)
+	    luckfox_rect(c, i, 0, i+1, yr - 1 , col_pal[c1]);
     
 #else	
         for (int i = 0; i < PAL_SIZE; i++)

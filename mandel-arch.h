@@ -1,9 +1,9 @@
 #ifndef __MANDEL_ARCH_H__
 #define __MANDEL_ARCH_H__
 /* definition section for globals to adapt for some variation */
-#define MTYPE double //long long int  // double
+#define MTYPE double           //long long int  // double
 //#define INTMATH              // goes along with int above, on Intels or other fast FPUs, double/float can be faster
-#define MAX_ITER_INIT 512
+#define MAX_ITER_INIT 1024
 //#define C64   // build for C64 GFX output
 
 // some global internals, no need to change normally
@@ -17,6 +17,8 @@
 #define INTIFY2(a) (a)
 #define DEINTIFY(a) (a)
 #endif
+#define VIDEO_CAPTURE
+#define FB_DEVICE
 #define COL16BIT
 #define CANVAS_TYPE uint16_t
 #define alloc_stack new char[STACK_SIZE * NO_THREADS]()
@@ -87,7 +89,7 @@ extern pthread_mutex_t logmutex;
 
 extern int iter;
 #include "mandelbrot.h"
-void amiga_setup_screen(void);
+CANVAS_TYPE *amiga_setup_screen(void);
 void amiga_zoom_ui(mandel<MTYPE> *m);
 
 #define setup_screen amiga_setup_screen
@@ -111,20 +113,23 @@ void amiga_zoom_ui(mandel<MTYPE> *m);
 #endif
 
 #include <stdint.h>
-
 extern CANVAS_TYPE *tft_canvas;		// must not be static?!
 
-void luckfox_setpx(void *canvas, int x, int y, int c);
-void init_luckfox(void);
+void luckfox_setpx(CANVAS_TYPE *canvas, int x, int y, int c);
+CANVAS_TYPE *init_luckfox(void);
 void luckfox_palette(int *p);
-void luckfox_play(void);
-void luckfox_rect(int x1, int y1, int x2, int y2, int c);
+void luckfox_rect(CANVAS_TYPE *c, int x1, int y1, int x2, int y2, int col);
 
-#define zoom_ui(...) luckfox_play()
+#define zoom_ui luckfox_play
 #define setup_screen init_luckfox
 #define canvas_setpx luckfox_setpx
 #define hook1(...)
 #define hook2(...)
+
+extern int iter;
+extern int img_w, img_h;
+#include "mandelbrot.h"
+void luckfox_play(mandel<MTYPE> *mandel);
 
 #else 
 #if defined(C64) || defined (__ZEPHYR__)
@@ -140,7 +145,7 @@ void luckfox_rect(int x1, int y1, int x2, int y2, int c);
 #undef STACK_SIZE
 #define STACK_SIZE 1024
 #define canvas_setpx canvas_setpx_
-#define setup_screen(...)
+#define setup_screen(...) NULL;
 #define zoom_ui(...)
 
 #include "c64-lib.h"
@@ -167,7 +172,7 @@ extern char *c64_stack;
 #define PIXELW 2 // 2
 
 #define canvas_setpx canvas_setpx_
-#define setup_screen(...)
+#define setup_screen(...) NULL
 #define zoom_ui(...)
 #define hook1(...)
 #define hook2(...)

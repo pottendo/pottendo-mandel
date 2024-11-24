@@ -178,7 +178,7 @@ void *anim_thread(void *arg)
     return NULL;
 }
 
-void amiga_setup_screen(void)
+CANVAS_TYPE *amiga_setup_screen(void)
 {
     myScreen = OpenScreen(&Screen1); /* & (ampersand) means address of */
     ScreenToFront(myScreen);
@@ -217,7 +217,8 @@ void amiga_setup_screen(void)
     if (pthread_create(&ath, &pattr, anim_thread, NULL) != 0)
         log_msg("%s: couldn't start animation thread\n", __FUNCTION__);
     pthread_detach(ath);
-#endif    
+#endif
+    return NULL;
 }
 
 /* Convert RAWKEYs into VANILLAKEYs, also shows special keys like HELP, Cursor Keys,

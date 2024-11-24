@@ -9,7 +9,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <linux/fb.h>
 #include <sys/ioctl.h>
-
+#include <tslib.h>
 #include "mandel-arch.h"
 extern void log_msg(const char *s, ...);
 
@@ -18,7 +18,7 @@ extern int img_w, img_h;
 
 static int fd;
 
-void init_luckfox(void)
+CANVAS_TYPE *init_luckfox(void)
 {
     struct fb_fix_screeninfo fb_fix;
     struct fb_var_screeninfo fb_var;
@@ -28,7 +28,7 @@ void init_luckfox(void)
     if (fd <= 0)
     {
         log_msg("open TFT framebuffer, errno = %d\n", errno);
-        return;
+        return NULL;
     }
 
     ioctl(fd, FBIOGET_VSCREENINFO, &fb_var);
@@ -42,17 +42,11 @@ void init_luckfox(void)
     {
         log_msg("mmap failed - errno = %d\n", errno);
         tft_canvas = NULL;
-        return;
+        return NULL;
     }
-#else
-    tft_canvas = new CANVAS_TYPE[img_w * img_h]();
-    if (!tft_canvas)
-    {
-        log_msg("%s: canvas malloc() failed.\n", __FUNCTION__);
-        return;
-    }
-#endif
     memset(tft_canvas, 0, (img_w * img_h) * sizeof(CANVAS_TYPE));
+#endif    
+    return tft_canvas;
 }
 
 void luckfox_palette(int *col_pal)
@@ -104,19 +98,21 @@ void luckfox_palette(int *col_pal)
 #endif
 }
 
-void luckfox_rect(int x1, int y1, int x2, int y2, int c)
+void luckfox_rect(CANVAS_TYPE *cv, int x1, int y1, int x2, int y2, int c)
 {
     for (int x = x1; x <= x2; x++)
 	    for (int y = y1; y <= y2; y++)
-	        luckfox_setpx(NULL, x, y, c);
+	        luckfox_setpx(cv, x, y, c);
 }
 
-void luckfox_setpx(void *canvas, int x, int y, int c)
+void luckfox_setpx(CANVAS_TYPE *canvas, int x, int y, int c)
 {
-    if (!tft_canvas)
-	return;
+    CANVAS_TYPE *cv;
+    cv = canvas ? canvas : tft_canvas;
+
+    if (!cv || (x < 0) || (y >= IMG_H)) return;
 //    pthread_mutex_lock(&logmutex);
-    tft_canvas[x + y * IMG_W] = c;
+    cv[x + y * IMG_W] = c;
     //log_msg("%s: (%d,%d) = %d\n", __FUNCTION__, x, y, c);
 //    pthread_mutex_unlock(&logmutex);
 }
@@ -156,22 +152,72 @@ cv::Mat convert24bitBGRtoCV8UC3(const CANVAS_TYPE *data, int width, int height) 
     return mat8bit.clone(); 
 }
 
-void luckfox_play(void)
+struct tsdev *ts;
+
+#ifdef VIDEO_CAPTURE
+void setup_ts(void)
+{
+    ts = ts_setup("/dev/input/event1", 1);
+    if (!ts)
+    {
+        perror("ts_setup");
+        exit(1);
+    }
+}
+#endif
+
+void luckfox_zoom(mandel<MTYPE> *m, struct ts_sample *samp)
+{
+    int x1, y1, x2, y2;
+    x1 = x2 = samp->x;
+    y1 = y2 = samp->y;
+
+    //log_msg("%s: touch = %dx%d - pressure = %d\n", __FUNCTION__, samp->x, samp->y, samp->pressure);
+    while (samp->pressure > 0)
+    {
+        ts_read(ts, samp, 1);
+        x2 = samp->x;
+        y2 = samp->y;
+    }
+    if ((x1 == x2) || (y1 == y2))
+        return;
+    int t;
+    if (x1 > x2) { t = x1; x1 = x2; x2 = t; }
+    if (y1 > y2) { t = y1; y1 = y2; y2 = t; }
+    point_t lu{x1, y1}, rd{x2, y2};
+    log_msg("%s: selected: [%d,%d] x [%d, %d]\n", __FUNCTION__, x1, y1, x2, y2);
+    m->select_start(lu);
+    m->select_end(rd);
+}
+
+void luckfox_play(mandel<MTYPE> *mandel)
 {
     CANVAS_TYPE *mask = new CANVAS_TYPE[img_w * img_h];
     memcpy(mask, tft_canvas, img_h * img_w * sizeof(CANVAS_TYPE));
-#if VIDEO_CAPTURE    
+#ifdef VIDEO_CAPTURE
+    struct ts_sample samp;
+    memset(&samp, 0, sizeof(struct ts_sample));
     cv::VideoCapture cap;
-    cv::Mat bgr(img_h, img_w, CV_8UC3); 
+    cv::Mat bgr(img_h, img_w, CV_8UC3);
     cv::Mat disp;
-    cap.set(cv::CAP_PROP_FRAME_WIDTH,  img_w);
+    cap.set(cv::CAP_PROP_FRAME_WIDTH, img_w);
     cap.set(cv::CAP_PROP_FRAME_HEIGHT, img_h);
     cap.open(0);
+
+    setup_ts();
     while (1)
     {
         cap >> bgr;
-
-        bgr.forEach<cv::Vec3b>([&mask](cv::Vec3b &p, const int *pos) { 
+        ts_read(ts, &samp, 1);
+        if (samp.pressure > 0)
+        {
+            //luckfox_rect(mask, samp.x, samp.y, samp.x + 5, samp.y + 5, 0);
+            luckfox_zoom(mandel, &samp);
+            memcpy(mask, tft_canvas, img_h * img_w * sizeof(CANVAS_TYPE));
+            memset(&samp, 0, sizeof(struct ts_sample));
+        }
+        bgr.forEach<cv::Vec3b>([&mask](cv::Vec3b &p, const int *pos)
+                               { 
                                     int idx = pos[0] * img_w + pos[1];
                                     if (!mask[idx])
                                         tft_canvas[idx] = convertToBGR565(p); });
@@ -182,8 +228,8 @@ void luckfox_play(void)
 #else
     cv::Mat img = convert24bitBGRtoCV8UC3(mask, img_w, img_h);
 #endif
-    cv::imshow("Mandelbrot", img);                            
-         
+    cv::imshow("Mandelbrot", img);
+
 #endif
     cv::waitKey(0);
 

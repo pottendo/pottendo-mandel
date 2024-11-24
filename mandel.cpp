@@ -41,8 +41,8 @@ int main(void)
     pthread_mutex_init(&logmutex, NULL);
     log_msg("Welcome mandelbrot...\n");
     stacks = alloc_stack;
-    setup_screen();
-    cv = alloc_canvas;
+    cv = setup_screen();
+    if (!cv) cv = alloc_canvas;
     log_msg("%s: stack_size per thread = %d, no threads=%d, iter = %d, palette = %ld, stacks = %p, cv = %p, CSIZE = %d\n", 
         __FUNCTION__, STACK_SIZE, NO_THREADS, iter, PAL_SIZE, stacks, cv, CSIZE);
 #if 0
