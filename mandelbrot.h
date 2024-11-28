@@ -458,7 +458,7 @@ public:
     };
 
     char *get_stacks(void) { return stacks; }
-
+    canvas_t get_canvas(void) { return canvas; }
     void dump_result(void)
     {
 #if !defined(C64) && !defined(LUCKFOX) && !defined(__amiga__)

@@ -37,7 +37,7 @@ CANVAS_TYPE *init_luckfox(void)
     img_h = fb_var.yres;
     log_msg("%s: img = %dx%d\n", __FUNCTION__, img_w, img_h);
 #ifdef FB_DEVICE    
-    tft_canvas = (CANVAS_TYPE *)mmap(NULL, (img_w * img_h) << 1, PROT_WRITE | PROT_READ, MAP_SHARED, fd, 0);
+    tft_canvas = (CANVAS_TYPE *)mmap(NULL, (img_w * img_h * sizeof(CANVAS_TYPE)), PROT_WRITE | PROT_READ, MAP_SHARED, fd, 0);
     if (tft_canvas == MAP_FAILED)
     {
         log_msg("mmap failed - errno = %d\n", errno);
@@ -154,17 +154,17 @@ cv::Mat convert24bitBGRtoCV8UC3(const CANVAS_TYPE *data, int width, int height) 
 
 struct tsdev *ts;
 
-#ifdef VIDEO_CAPTURE
 void setup_ts(void)
 {
+#ifdef TOUCH
     ts = ts_setup("/dev/input/event1", 1);
     if (!ts)
     {
         perror("ts_setup");
         exit(1);
     }
-}
 #endif
+}
 
 void luckfox_zoom(mandel<MTYPE> *m, struct ts_sample *samp)
 {
@@ -175,7 +175,9 @@ void luckfox_zoom(mandel<MTYPE> *m, struct ts_sample *samp)
     //log_msg("%s: touch = %dx%d - pressure = %d\n", __FUNCTION__, samp->x, samp->y, samp->pressure);
     while (samp->pressure > 0)
     {
+#ifdef TOUCH	
         ts_read(ts, samp, 1);
+#endif	
         x2 = samp->x;
         y2 = samp->y;
     }
@@ -192,35 +194,47 @@ void luckfox_zoom(mandel<MTYPE> *m, struct ts_sample *samp)
 
 void luckfox_play(mandel<MTYPE> *mandel)
 {
-    CANVAS_TYPE *mask = new CANVAS_TYPE[img_w * img_h];
-    memcpy(mask, tft_canvas, img_h * img_w * sizeof(CANVAS_TYPE));
+    CANVAS_TYPE *mask = new CANVAS_TYPE[img_w * img_h * sizeof(CANVAS_TYPE)];
+    memcpy(mask, mandel->get_canvas(), img_h * img_w * sizeof(CANVAS_TYPE));
 #ifdef VIDEO_CAPTURE
     struct ts_sample samp;
     memset(&samp, 0, sizeof(struct ts_sample));
     cv::VideoCapture cap;
     cv::Mat bgr(img_h, img_w, CV_8UC3);
-    cv::Mat disp;
+    cv::Mat disp, mmask, out;
     cap.set(cv::CAP_PROP_FRAME_WIDTH, img_w);
     cap.set(cv::CAP_PROP_FRAME_HEIGHT, img_h);
     cap.open(0);
 
+    mmask = cv::Mat(img_h, img_w, CV_16UC1, mask);
+    //cv::imshow("test", mmask);
     setup_ts();
     while (1)
     {
         cap >> bgr;
+	    //cv::cvtColor(bgr, disp, cv::COLOR_RGB2BGR);
+#ifdef TOUCH	
         ts_read(ts, &samp, 1);
         if (samp.pressure > 0)
         {
             //luckfox_rect(mask, samp.x, samp.y, samp.x + 5, samp.y + 5, 0);
             luckfox_zoom(mandel, &samp);
             memcpy(mask, tft_canvas, img_h * img_w * sizeof(CANVAS_TYPE));
+	        mmask = cv::Mat(img_h, img_w, CV_16UC1, mask);
             memset(&samp, 0, sizeof(struct ts_sample));
         }
+#endif	
+#if 1
         bgr.forEach<cv::Vec3b>([&mask](cv::Vec3b &p, const int *pos)
                                { 
                                     int idx = pos[0] * img_w + pos[1];
                                     if (!mask[idx])
                                         tft_canvas[idx] = convertToBGR565(p); });
+#endif
+	    //cv::addWeighted(disp, 0.2, mmask, 0.8, 0.0, out);
+        //cv::bitwise_and(disp, mmask, out);
+	    //cv::imshow("fb", out);
+        //cv::imshow("fb", disp);
     }
 #else
 #ifdef COL16BIT

@@ -21,7 +21,7 @@ void log_msg(const char *s, ...)
 #endif  /* PTHREADS */
 
 // globals
-int img_w, img_h;   // used by luckfox
+int img_w = 1024, img_h=768;   // used by luckfox
 int iter = MAX_ITER_INIT;  // used by Amiga
 MTYPE xrat = 1.0;
 
