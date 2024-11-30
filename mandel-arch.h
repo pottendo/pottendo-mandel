@@ -17,11 +17,8 @@
 #define INTIFY2(a) (a)
 #define DEINTIFY(a) (a)
 #endif
-#define VIDEO_CAPTURE
-#define FB_DEVICE
-#define COL16BIT
-#define TOUCH
-#define CANVAS_TYPE uint16_t
+
+#include <stdint.h>
 #define alloc_stack new char[STACK_SIZE * NO_THREADS]()
 #define alloc_canvas new CANVAS_TYPE[CSIZE]()
 
@@ -49,7 +46,7 @@ extern pthread_mutex_t logmutex;
 #endif
 #define MAX_ITER iter   // relict
 
-#ifdef __amiga__
+#ifdef __amiga__ //-------------------------------------------------------------------
 #include <proto/exec.h>
 #include <proto/dos.h>
 #include <exec/io.h>
@@ -100,20 +97,33 @@ void amiga_zoom_ui(mandel<MTYPE> *m);
 
 #else  /* __amiga__ */
 
+#ifdef __linux__ //-------------------------------------------------------------------
+
 #ifdef LUCKFOX
+#define VIDEO_CAPTURE
+#define FB_DEVICE
+#define COL16BIT
+#define TOUCH
+#define CANVAS_TYPE uint16_t
+#define CVCOL CV_16UC1
+#else
+#define VIDEO_CAPTURE
+#define CANVAS_TYPE uint32_t
+#define CVCOL CV_8UC4
+#endif
+
 #define IMG_W img_w
 #define IMG_H img_h
 #define SCRDEPTH 24  // or 6 for 64cols lesser resolution
 #define PAL_SIZE (1L << SCRDEPTH)
 #define PIXELW 1
-#define CSIZE (img_w * img_h) / 8
+#define CSIZE (img_w * img_h) /// 8
 
 #ifndef PTHREAD_STACK_MIN
 #undef STACK_SIZE
 #define STACK_SIZE 16384
 #endif
 
-#include <stdint.h>
 extern CANVAS_TYPE *tft_canvas;		// must not be static?!
 
 void luckfox_setpx(CANVAS_TYPE *canvas, int x, int y, int c);
@@ -132,7 +142,7 @@ extern int img_w, img_h;
 #include "mandelbrot.h"
 void luckfox_play(mandel<MTYPE> *mandel);
 
-#else 
+#else //-------------------------------------------------------------------
 #if defined(C64) || defined (__ZEPHYR__)
 #if (NO_THREADS > 16)
 #error "too many threads for Orangencart's STACK_SIZE"
@@ -164,7 +174,7 @@ extern char *c64_stack;
 #define hook2(...)
 #endif
 
-#else // non-specific architectures 
+#else // non-specific architectures-----------------------------------------
 #define IMG_W 120
 #define IMG_H 80
 #define SCRDEPTH 2

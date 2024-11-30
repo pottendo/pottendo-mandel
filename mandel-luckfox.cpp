@@ -151,6 +151,33 @@ cv::Mat convert24bitBGRtoCV8UC3(const CANVAS_TYPE *data, int width, int height) 
     // This avoids potential issues if the original data is freed or modified later.
     return mat8bit.clone(); 
 }
+cv::Mat rgb565ToCV8UC3(const cv::Mat& input) {
+    // Create an output Mat of type CV_8UC3 (3-channel, 8-bit)
+    cv::Mat output(input.rows, input.cols, CV_8UC3);
+
+    // Loop over each pixel in the input image
+    for (int y = 0; y < input.rows; y++) {
+        for (int x = 0; x < input.cols; x++) {
+            // Get the 16-bit RGB565 value from the input image
+            uint16_t rgb565 = input.at<uint16_t>(y, x);
+
+            // Extract the RGB components from RGB565
+            uint8_t r = (rgb565 >> 11) & 0x1F; // Extract the 5-bit red component
+            uint8_t g = (rgb565 >> 5) & 0x3F;  // Extract the 6-bit green component
+            uint8_t b = rgb565 & 0x1F;          // Extract the 5-bit blue component
+
+            // Convert to 8-bit by scaling the components
+            r = (r << 3); // Scale red to 8 bits
+            g = (g << 2); // Scale green to 8 bits
+            b = (b << 3); // Scale blue to 8 bits
+
+            // Store the converted RGB values in the output image (BGR format)
+            output.at<cv::Vec3b>(y, x) = cv::Vec3b(b, g, r);
+        }
+    }
+
+    return output;
+}
 
 struct tsdev *ts;
 
@@ -166,6 +193,7 @@ void setup_ts(void)
 #endif
 }
 
+#ifdef TOUCH	
 void luckfox_zoom(mandel<MTYPE> *m, struct ts_sample *samp)
 {
     int x1, y1, x2, y2;
@@ -175,9 +203,7 @@ void luckfox_zoom(mandel<MTYPE> *m, struct ts_sample *samp)
     //log_msg("%s: touch = %dx%d - pressure = %d\n", __FUNCTION__, samp->x, samp->y, samp->pressure);
     while (samp->pressure > 0)
     {
-#ifdef TOUCH	
         ts_read(ts, samp, 1);
-#endif	
         x2 = samp->x;
         y2 = samp->y;
     }
@@ -191,50 +217,65 @@ void luckfox_zoom(mandel<MTYPE> *m, struct ts_sample *samp)
     m->select_start(lu);
     m->select_end(rd);
 }
-
+#endif	
+#include <iostream>
 void luckfox_play(mandel<MTYPE> *mandel)
 {
-    CANVAS_TYPE *mask = new CANVAS_TYPE[img_w * img_h * sizeof(CANVAS_TYPE)];
-    memcpy(mask, mandel->get_canvas(), img_h * img_w * sizeof(CANVAS_TYPE));
 #ifdef VIDEO_CAPTURE
+#ifdef TOUCH
     struct ts_sample samp;
     memset(&samp, 0, sizeof(struct ts_sample));
+#endif    
     cv::VideoCapture cap;
-    cv::Mat bgr(img_h, img_w, CV_8UC3);
+    cv::Mat bgr;
     cv::Mat disp, mmask, out;
     cap.set(cv::CAP_PROP_FRAME_WIDTH, img_w);
     cap.set(cv::CAP_PROP_FRAME_HEIGHT, img_h);
     cap.open(0);
-
-    mmask = cv::Mat(img_h, img_w, CV_16UC1, mask);
-    //cv::imshow("test", mmask);
+    cap >> bgr;
+    log_msg("Mandelbrot %dx%d, scaling to %dx%d to match video\n", img_w, img_h, bgr.cols, bgr.rows);
+    mmask = cv::Mat(img_h, img_w, CVCOL, mandel->get_canvas());
+    cv::resize(mmask, mmask, cv::Size(bgr.cols, bgr.rows));
+    cv::cvtColor(bgr, bgr, cv::COLOR_RGB2BGR);
+#ifdef LUCKFOX    
+    mmask = rgb565ToCV8UC3(mmask);
+#else 
+    cv::cvtColor(mmask, mmask, cv::COLOR_RGB2BGR);
+#endif    
+    std::cout << "bgr = " << bgr.cols << "x" << bgr.rows << ", depth = " << CV_MAT_DEPTH(bgr.type()) << ", channels = " << (bgr.channels()) << '\n';
+    std::cout << "mmask = " << mmask.cols << "x" << mmask.rows << ", depth = " << CV_MAT_DEPTH(mmask.type()) << ", channels = " << (mmask.channels()) << '\n';
     setup_ts();
     while (1)
     {
         cap >> bgr;
-	    //cv::cvtColor(bgr, disp, cv::COLOR_RGB2BGR);
+#ifdef LUCKFOX        
+    	cv::cvtColor(bgr, bgr, cv::COLOR_RGB2BGR);
+#endif
 #ifdef TOUCH	
         ts_read(ts, &samp, 1);
         if (samp.pressure > 0)
         {
             //luckfox_rect(mask, samp.x, samp.y, samp.x + 5, samp.y + 5, 0);
             luckfox_zoom(mandel, &samp);
-            memcpy(mask, tft_canvas, img_h * img_w * sizeof(CANVAS_TYPE));
-	        mmask = cv::Mat(img_h, img_w, CV_16UC1, mask);
+	        mmask = cv::Mat(img_h, img_w, CVCOL, mandel->get_canvas());
+            cv::resize(mmask, mmask, cv::Size(bgr.cols, bgr.rows));
+            mmask = rgb565ToCV8UC3(mmask);
             memset(&samp, 0, sizeof(struct ts_sample));
         }
 #endif	
-#if 1
+#if 0
         bgr.forEach<cv::Vec3b>([&mask](cv::Vec3b &p, const int *pos)
                                { 
                                     int idx = pos[0] * img_w + pos[1];
                                     if (!mask[idx])
                                         tft_canvas[idx] = convertToBGR565(p); });
 #endif
-	    //cv::addWeighted(disp, 0.2, mmask, 0.8, 0.0, out);
-        //cv::bitwise_and(disp, mmask, out);
-	    //cv::imshow("fb", out);
-        //cv::imshow("fb", disp);
+	    cv::addWeighted(bgr, 0.5, mmask, 1.0, 0.0, out);
+        //cv::bitwise_and(bgr, mmask, out);
+	    cv::imshow("fb", out);
+#ifndef LUCKFOX        
+        cv::waitKey(1);
+#endif        
     }
 #else
 #ifdef COL16BIT
@@ -246,6 +287,4 @@ void luckfox_play(mandel<MTYPE> *mandel)
 
 #endif
     cv::waitKey(0);
-
-    delete[] mask;
 }
