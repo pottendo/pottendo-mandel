@@ -462,7 +462,7 @@ public:
     void dump_result(void)
     {
 #if !defined(C64) && !defined(LUCKFOX) && !defined(__amiga__)
-        //canvas_dump(canvas);
+        canvas_dump(canvas);
 #endif
         struct timespec dt;
         timespec_diff(&tend, &tstart, &dt);

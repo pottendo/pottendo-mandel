@@ -11,6 +11,7 @@
 #include <sys/ioctl.h>
 #include <tslib.h>
 #include "mandel-arch.h"
+#include <time.h>
 extern void log_msg(const char *s, ...);
 
 CANVAS_TYPE *tft_canvas; // must not be static?!
@@ -218,7 +219,19 @@ void luckfox_zoom(mandel<MTYPE> *m, struct ts_sample *samp)
     m->select_end(rd);
 }
 #endif	
-#include <iostream>
+//#include <iostream>
+   /* class private functinos */
+inline void timespec_diff(struct timespec *a, struct timespec *b, struct timespec *result)
+{
+        result->tv_sec = a->tv_sec - b->tv_sec;
+        result->tv_nsec = a->tv_nsec - b->tv_nsec;
+        if (result->tv_nsec < 0)
+        {
+            --result->tv_sec;
+            result->tv_nsec += 1000000000L;
+        }
+}
+
 void luckfox_play(mandel<MTYPE> *mandel)
 {
 #ifdef VIDEO_CAPTURE
@@ -242,8 +255,8 @@ void luckfox_play(mandel<MTYPE> *mandel)
 #else 
     cv::cvtColor(mmask, mmask, cv::COLOR_RGB2BGR);
 #endif    
-    std::cout << "bgr = " << bgr.cols << "x" << bgr.rows << ", depth = " << CV_MAT_DEPTH(bgr.type()) << ", channels = " << (bgr.channels()) << '\n';
-    std::cout << "mmask = " << mmask.cols << "x" << mmask.rows << ", depth = " << CV_MAT_DEPTH(mmask.type()) << ", channels = " << (mmask.channels()) << '\n';
+    //std::cout << "bgr = " << bgr.cols << "x" << bgr.rows << ", depth = " << CV_MAT_DEPTH(bgr.type()) << ", channels = " << (bgr.channels()) << '\n';
+    //std::cout << "mmask = " << mmask.cols << "x" << mmask.rows << ", depth = " << CV_MAT_DEPTH(mmask.type()) << ", channels = " << (mmask.channels()) << '\n';
     setup_ts();
     while (1)
     {
@@ -262,16 +275,18 @@ void luckfox_play(mandel<MTYPE> *mandel)
             mmask = rgb565ToCV8UC3(mmask);
             memset(&samp, 0, sizeof(struct ts_sample));
         }
-#endif	
-#if 0
-        bgr.forEach<cv::Vec3b>([&mask](cv::Vec3b &p, const int *pos)
-                               { 
-                                    int idx = pos[0] * img_w + pos[1];
-                                    if (!mask[idx])
-                                        tft_canvas[idx] = convertToBGR565(p); });
 #endif
+#if 0
+        struct timespec t1, t2, d1, d2;
+        clock_gettime(CLOCK_REALTIME, &t1);
+#endif        
 	    cv::addWeighted(bgr, 0.5, mmask, 1.0, 0.0, out);
         //cv::bitwise_and(bgr, mmask, out);
+#if 0        
+        clock_gettime(CLOCK_REALTIME, &t2);
+        timespec_diff(&t2, &t1, &d1);
+        log_msg("d1 = %04d.%09d\n", d1.tv_sec, d1.tv_nsec);
+#endif
 	    cv::imshow("fb", out);
 #ifndef LUCKFOX        
         cv::waitKey(1);
