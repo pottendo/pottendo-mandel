@@ -9,10 +9,10 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <linux/fb.h>
 #include <sys/ioctl.h>
+#include "mandel-arch.h"
 #ifdef TOUCH
 #include <tslib.h>
 #endif
-#include "mandel-arch.h"
 #include <time.h>
 extern void log_msg(const char *s, ...);
 
@@ -115,16 +115,16 @@ void luckfox_setpx(CANVAS_TYPE *canvas, int x, int y, int c)
 
     if (!cv || (x < 0) || (y >= IMG_H)) return;
 //    pthread_mutex_lock(&logmutex);
-    cv[x + y * IMG_W] = c << 3;
+    cv[x + y * IMG_W] = c;
     //log_msg("%s: (%d,%d) = %d\n", __FUNCTION__, x, y, c);
 //    pthread_mutex_unlock(&logmutex);
 }
 
 uint16_t convertToBGR565(const cv::Vec3b& bgr_pixel) 
 {
-    uint16_t blue = (bgr_pixel[0] >> 3) & 0x1F;  // 5 bits for blue
+    uint16_t red = (bgr_pixel[0] >> 3) & 0x1F;  // 5 bits for blue
     uint16_t green = (bgr_pixel[1] >> 2 ) & 0x3F; // 6 bits for green
-    uint16_t red = (bgr_pixel[2] >> 3) & 0x1F;    // 5 bits for red
+    uint16_t blue = (bgr_pixel[2] >> 3) & 0x1F;    // 5 bits for red
 
     return ((blue << 11) | (green << 5) | (red ));   // Pack into 16 bits
 }
@@ -291,6 +291,15 @@ void luckfox_play(mandel<MTYPE> *mandel)
         clock_gettime(CLOCK_REALTIME, &t2);
         timespec_diff(&t2, &t1, &d1);
         clock_gettime(CLOCK_REALTIME, &t2);
+#ifdef LUCKFOX
+        bgr.forEach<cv::Vec3b>([&mmask, &out](cv::Vec3b &p, const int *pos) {
+                                const cv::Vec3b empty_pixel{0,0,0};
+                                if (mmask.at<cv::Vec3b>(pos[0], pos[1]) == empty_pixel) {
+                                    out.at<uint16_t>(pos[0], pos[1]) = convertToBGR565(p);
+                                } else {
+                                    out.at<uint16_t>(pos[0], pos[1]) = convertToBGR565(mmask.at<cv::Vec3b>(pos[0], pos[1]) * 0.5 + p * 0.5);
+                                }});
+#else
         bgr.forEach<cv::Vec3b>([&mmask, &out](cv::Vec3b &p, const int *pos) {
                                 const cv::Vec3b empty_pixel(0,0,0);
                                 if (mmask.at<cv::Vec3b>(pos[0], pos[1]) == empty_pixel) {
@@ -298,6 +307,7 @@ void luckfox_play(mandel<MTYPE> *mandel)
                                 } else {
                                     out.at<cv::Vec3b>(pos[0], pos[1]) = mmask.at<cv::Vec3b>(pos[0], pos[1]) * 0.5 + p * 0.5;
                                 }});
+#endif                                
         clock_gettime(CLOCK_REALTIME, &t3);
         timespec_diff(&t3, &t2, &d2);
         log_msg("d1 = %04d.%09d\n", d1.tv_sec, d1.tv_nsec);
