@@ -9,7 +9,9 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <linux/fb.h>
 #include <sys/ioctl.h>
+#ifdef TOUCH
 #include <tslib.h>
+#endif
 #include "mandel-arch.h"
 #include <time.h>
 extern void log_msg(const char *s, ...);
@@ -180,21 +182,18 @@ cv::Mat rgb565ToCV8UC3(const cv::Mat& input) {
     return output;
 }
 
+#ifdef TOUCH
 struct tsdev *ts;
 
 void setup_ts(void)
 {
-#ifdef TOUCH
     ts = ts_setup("/dev/input/event1", 1);
     if (!ts)
     {
         perror("ts_setup");
         exit(1);
     }
-#endif
 }
-
-#ifdef TOUCH	
 void luckfox_zoom(mandel<MTYPE> *m, struct ts_sample *samp)
 {
     int x1, y1, x2, y2;
@@ -218,6 +217,9 @@ void luckfox_zoom(mandel<MTYPE> *m, struct ts_sample *samp)
     m->select_start(lu);
     m->select_end(rd);
 }
+
+#else
+#define setup_ts(...)
 #endif	
 //#include <iostream>
    /* class private functinos */
@@ -241,20 +243,23 @@ void luckfox_play(mandel<MTYPE> *mandel)
 #endif    
     cv::VideoCapture cap;
     cv::Mat bgr;
-    cv::Mat disp, mmask, out;
+    cv::Mat disp, mmask, out, out2;
     cap.set(cv::CAP_PROP_FRAME_WIDTH, img_w);
     cap.set(cv::CAP_PROP_FRAME_HEIGHT, img_h);
     cap.open(0);
     cap >> bgr;
-    log_msg("Mandelbrot %dx%d, scaling to %dx%d to match video\n", img_w, img_h, bgr.cols, bgr.rows);
+    log_msg("Mandelbrot %dx%d, scaling to %dx%d to match video, depth = %d, channels = %d\n", img_w, img_h, bgr.cols, bgr.rows, CV_MAT_DEPTH(bgr.type()), bgr.channels());
     mmask = cv::Mat(img_h, img_w, CVCOL, mandel->get_canvas());
     cv::resize(mmask, mmask, cv::Size(bgr.cols, bgr.rows));
     cv::cvtColor(bgr, bgr, cv::COLOR_RGB2BGR);
+    out = mmask;
 #ifdef LUCKFOX    
     mmask = rgb565ToCV8UC3(mmask);
 #else 
     cv::cvtColor(mmask, mmask, cv::COLOR_RGB2BGR);
+    cv::cvtColor(out, out, cv::COLOR_RGB2BGR);
 #endif    
+
     //std::cout << "bgr = " << bgr.cols << "x" << bgr.rows << ", depth = " << CV_MAT_DEPTH(bgr.type()) << ", channels = " << (bgr.channels()) << '\n';
     //std::cout << "mmask = " << mmask.cols << "x" << mmask.rows << ", depth = " << CV_MAT_DEPTH(mmask.type()) << ", channels = " << (mmask.channels()) << '\n';
     setup_ts();
@@ -276,18 +281,31 @@ void luckfox_play(mandel<MTYPE> *mandel)
             memset(&samp, 0, sizeof(struct ts_sample));
         }
 #endif
-#if 0
-        struct timespec t1, t2, d1, d2;
+#if 1
+        struct timespec t1, t2, t3, d1, d2;
         clock_gettime(CLOCK_REALTIME, &t1);
 #endif        
-	    cv::addWeighted(bgr, 0.5, mmask, 1.0, 0.0, out);
+	    cv::addWeighted(bgr, 0.5, mmask, 0.5, 0.0, out2);
         //cv::bitwise_and(bgr, mmask, out);
-#if 0        
+#if 1        
         clock_gettime(CLOCK_REALTIME, &t2);
         timespec_diff(&t2, &t1, &d1);
+        clock_gettime(CLOCK_REALTIME, &t2);
+        bgr.forEach<cv::Vec3b>([&mmask, &out](cv::Vec3b &p, const int *pos) {
+                                const cv::Vec3b empty_pixel(0,0,0);
+                                if (mmask.at<cv::Vec3b>(pos[0], pos[1]) == empty_pixel) {
+                                    out.at<cv::Vec3b>(pos[0], pos[1]) = p;
+                                } else {
+                                    out.at<cv::Vec3b>(pos[0], pos[1]) = mmask.at<cv::Vec3b>(pos[0], pos[1]) * 0.5 + p * 0.5;
+                                }
+                            });
+        clock_gettime(CLOCK_REALTIME, &t3);
+        timespec_diff(&t3, &t2, &d2);
         log_msg("d1 = %04d.%09d\n", d1.tv_sec, d1.tv_nsec);
+        log_msg("d2 = %04d.%09d\n", d2.tv_sec, d2.tv_nsec);
 #endif
 	    cv::imshow("fb", out);
+        cv::imshow("CV-filter", out2);
 #ifndef LUCKFOX        
         cv::waitKey(1);
 #endif        

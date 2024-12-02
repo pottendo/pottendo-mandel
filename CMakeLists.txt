@@ -16,7 +16,9 @@ set(OpenCV_DIR "/work/src/luckfox/demos/opencv-mobile-4.10.0/build/install/lib/c
 set(LINKOPTS "-L${SYSROOT}/usr/lib")
 set(COPTS "-I${SYSROOT}/include")
 set(ARCHSRC "mandel-luckfox.cpp")
+set(TSLIBS "ts")
 else()
+set(ARCHSRC "mandel-luckfox.cpp")
 endif()
 message(STATUS "target = " ${TARGETX})
 
@@ -34,7 +36,7 @@ add_executable(${PROJECT_NAME} ${SRC_FILES})
 
 target_link_libraries(${PROJECT_NAME}
     ${OpenCV_LIBS}
-    ts
+    ${TSLIBS}
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
