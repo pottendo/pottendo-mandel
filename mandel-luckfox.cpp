@@ -115,7 +115,7 @@ void luckfox_setpx(CANVAS_TYPE *canvas, int x, int y, int c)
 
     if (!cv || (x < 0) || (y >= IMG_H)) return;
 //    pthread_mutex_lock(&logmutex);
-    cv[x + y * IMG_W] = c;
+    cv[x + y * IMG_W] = c << 3;
     //log_msg("%s: (%d,%d) = %d\n", __FUNCTION__, x, y, c);
 //    pthread_mutex_unlock(&logmutex);
 }
@@ -281,13 +281,13 @@ void luckfox_play(mandel<MTYPE> *mandel)
             memset(&samp, 0, sizeof(struct ts_sample));
         }
 #endif
-#if 1
+#ifdef BENCHMARK
         struct timespec t1, t2, t3, d1, d2;
         clock_gettime(CLOCK_REALTIME, &t1);
 #endif        
 	    cv::addWeighted(bgr, 0.5, mmask, 0.5, 0.0, out2);
         //cv::bitwise_and(bgr, mmask, out);
-#if 1        
+#ifdef BENCHMARK  
         clock_gettime(CLOCK_REALTIME, &t2);
         timespec_diff(&t2, &t1, &d1);
         clock_gettime(CLOCK_REALTIME, &t2);
@@ -297,16 +297,15 @@ void luckfox_play(mandel<MTYPE> *mandel)
                                     out.at<cv::Vec3b>(pos[0], pos[1]) = p;
                                 } else {
                                     out.at<cv::Vec3b>(pos[0], pos[1]) = mmask.at<cv::Vec3b>(pos[0], pos[1]) * 0.5 + p * 0.5;
-                                }
-                            });
+                                }});
         clock_gettime(CLOCK_REALTIME, &t3);
         timespec_diff(&t3, &t2, &d2);
         log_msg("d1 = %04d.%09d\n", d1.tv_sec, d1.tv_nsec);
         log_msg("d2 = %04d.%09d\n", d2.tv_sec, d2.tv_nsec);
 #endif
 	    cv::imshow("fb", out);
-        cv::imshow("CV-filter", out2);
 #ifndef LUCKFOX        
+        cv::imshow("CV-filter", out2);
         cv::waitKey(1);
 #endif        
     }

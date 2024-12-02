@@ -112,6 +112,8 @@ void amiga_zoom_ui(mandel<MTYPE> *m);
 #define CVCOL CV_8UC4
 #endif
 
+#define BENCHMARK
+
 #define IMG_W img_w
 #define IMG_H img_h
 #define SCRDEPTH 24  // or 6 for 64cols lesser resolution
