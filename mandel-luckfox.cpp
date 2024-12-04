@@ -313,7 +313,7 @@ void luckfox_play(mandel<MTYPE> *mandel)
         log_msg("d1 = %04d.%09d\n", d1.tv_sec, d1.tv_nsec);
         log_msg("d2 = %04d.%09d\n", d2.tv_sec, d2.tv_nsec);
 #endif
-	    cv::imshow("fb", out);
+	    cv::imshow("fb", out2);
 #ifndef LUCKFOX        
         cv::imshow("CV-filter", out2);
         cv::waitKey(1);
