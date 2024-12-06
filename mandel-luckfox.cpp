@@ -19,14 +19,14 @@ extern void log_msg(const char *s, ...);
 CANVAS_TYPE *tft_canvas; // must not be static?!
 extern int img_w, img_h;
 
-static int fd;
-
 CANVAS_TYPE *init_luckfox(void)
 {
+#ifdef FB_DEVICE    
+    static int fd;
+
     struct fb_fix_screeninfo fb_fix;
     struct fb_var_screeninfo fb_var;
-
-    log_msg("init luckfox TFT\n");
+    log_msg("init framebuffer TFT\n");
     fd = open("/dev/fb0", O_RDWR);
     if (fd <= 0)
     {
@@ -39,7 +39,6 @@ CANVAS_TYPE *init_luckfox(void)
     img_w = fb_var.xres;
     img_h = fb_var.yres;
     log_msg("%s: img = %dx%d\n", __FUNCTION__, img_w, img_h);
-#ifdef FB_DEVICE    
     tft_canvas = (CANVAS_TYPE *)mmap(NULL, (img_w * img_h * sizeof(CANVAS_TYPE)), PROT_WRITE | PROT_READ, MAP_SHARED, fd, 0);
     if (tft_canvas == MAP_FAILED)
     {
@@ -244,9 +243,9 @@ void luckfox_play(mandel<MTYPE> *mandel)
     cv::VideoCapture cap;
     cv::Mat bgr;
     cv::Mat disp, mmask, out, out2;
-    cap.set(cv::CAP_PROP_FRAME_WIDTH, img_w);
-    cap.set(cv::CAP_PROP_FRAME_HEIGHT, img_h);
-    cap.open(0);
+    //cap.set(cv::CAP_PROP_FRAME_WIDTH, img_w);
+    //cap.set(cv::CAP_PROP_FRAME_HEIGHT, img_h);
+    cap.open(video_device);
     cap >> bgr;
     log_msg("Mandelbrot %dx%d, scaling to %dx%d to match video, depth = %d, channels = %d\n", img_w, img_h, bgr.cols, bgr.rows, CV_MAT_DEPTH(bgr.type()), bgr.channels());
     mmask = cv::Mat(img_h, img_w, CVCOL, mandel->get_canvas());
@@ -285,8 +284,9 @@ void luckfox_play(mandel<MTYPE> *mandel)
         struct timespec t1, t2, t3, d1, d2;
         clock_gettime(CLOCK_REALTIME, &t1);
 #endif        
-	    cv::addWeighted(bgr, 0.5, mmask, 0.5, 0.0, out2);
-        //cv::bitwise_and(bgr, mmask, out);
+        if (blend)
+	        cv::addWeighted(bgr, 0.5, mmask, 5.0, 0.0, bgr);
+        //    cv::bitwise_and(bgr, mmask, bgr);
 #ifdef BENCHMARK  
         clock_gettime(CLOCK_REALTIME, &t2);
         timespec_diff(&t2, &t1, &d1);
@@ -313,9 +313,10 @@ void luckfox_play(mandel<MTYPE> *mandel)
         log_msg("d1 = %04d.%09d\n", d1.tv_sec, d1.tv_nsec);
         log_msg("d2 = %04d.%09d\n", d2.tv_sec, d2.tv_nsec);
 #endif
-	    cv::imshow("fb", out2);
-#ifndef LUCKFOX        
-        cv::imshow("CV-filter", out2);
+	    //cv::imshow("fb", out);
+#ifndef LUCKFOX    
+        cv::resize(bgr, out2, cv::Size(img_w, img_h));  
+        cv::imshow("LiveVideo", out2);
         cv::waitKey(1);
 #endif        
     }

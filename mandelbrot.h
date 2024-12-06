@@ -461,7 +461,7 @@ public:
     canvas_t get_canvas(void) { return canvas; }
     void dump_result(void)
     {
-#if !defined(C64) && !defined(LUCKFOX) && !defined(__amiga__)
+#if !defined(C64) && !defined(LUCKFOX) && !defined(__amiga__) && !defined(VIDEO_CAPTURE)
         canvas_dump(canvas);
 #endif
         struct timespec dt;

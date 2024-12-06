@@ -116,8 +116,8 @@ void amiga_zoom_ui(mandel<MTYPE> *m);
 
 #define IMG_W img_w
 #define IMG_H img_h
-#define SCRDEPTH 24  // or 6 for 64cols lesser resolution
-#define PAL_SIZE (1L << SCRDEPTH)
+//#define SCRDEPTH 24  // or 6 for 64cols lesser resolution
+#define PAL_SIZE (1024)
 #define PIXELW 1
 #define CSIZE (img_w * img_h) /// 8
 
@@ -139,7 +139,7 @@ void luckfox_rect(CANVAS_TYPE *c, int x1, int y1, int x2, int y2, int col);
 #define hook1(...)
 #define hook2(...)
 
-extern int iter;
+extern int iter, video_device, blend;
 extern int img_w, img_h;
 #include "mandelbrot.h"
 void luckfox_play(mandel<MTYPE> *mandel);

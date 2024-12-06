@@ -21,8 +21,9 @@ void log_msg(const char *s, ...)
 #endif  /* PTHREADS */
 
 // globals
-int img_w = 1024, img_h=768;   // used by luckfox
-int iter = MAX_ITER_INIT;  // used by Amiga
+int img_w = 800, img_h=480;   // used by luckfox
+int iter = MAX_ITER_INIT;     // used by Amiga
+int video_device, blend;      // used by opencv
 MTYPE xrat = 1.0;
 
 static CANVAS_TYPE *cv;
@@ -36,8 +37,50 @@ typedef struct
     point_t rd;
 } rec_t;
 
-int main(void)
+int main(int argc, char *argv[])
 {
+    if (argc > 1)
+    {
+        char opt;
+        while ((opt = getopt(argc, argv, "bv:r:h")) != -1)
+        {
+            switch (opt)
+            {
+            case 'b':
+                blend = 1;
+                break;
+            case 'v':
+                if (optarg)
+                {
+                    video_device = strtol(optarg, NULL, 10);
+                }
+                log_msg("video-device set to %d\n", video_device);
+                break;
+            case 'r':
+                if (optarg)
+                {
+                    char *x;
+                    img_w = strtol(optarg, &x, 10);
+                    if (*x == 'x')
+                    {
+                        img_h = strtol(x + 1, NULL, 10);
+                        if ((img_w > 0) && (img_w > 0)) {
+                            log_msg("resolution set: %dx%d\n", img_w, img_h);
+                            break;
+                        }
+                    }
+                } // else fallthrough
+            case 'h':
+            case '?':
+                // Print help message and exit
+                printf("Usage: %s [-b] [-v <video device nr>] [-r resolution in form <XxY> (e.g.: -r 800x480)]\n", argv[0]);
+                return 0;
+            default:
+                fprintf(stderr, "Unexpected error in getopt\n");
+                return 1;
+            }
+        }
+    }
     pthread_mutex_init(&logmutex, NULL);
     log_msg("Welcome mandelbrot...\n");
     stacks = alloc_stack;
