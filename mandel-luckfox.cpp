@@ -285,7 +285,7 @@ void luckfox_play(mandel<MTYPE> *mandel)
         clock_gettime(CLOCK_REALTIME, &t1);
 #endif        
         if (blend)
-	        cv::addWeighted(bgr, 0.5, mmask, 5.0, 0.0, bgr);
+	        cv::addWeighted(bgr, 0.5, mmask, 0.5, 0.0, bgr);
         //    cv::bitwise_and(bgr, mmask, bgr);
 #ifdef BENCHMARK  
         clock_gettime(CLOCK_REALTIME, &t2);
@@ -313,10 +313,10 @@ void luckfox_play(mandel<MTYPE> *mandel)
         log_msg("d1 = %04d.%09d\n", d1.tv_sec, d1.tv_nsec);
         log_msg("d2 = %04d.%09d\n", d2.tv_sec, d2.tv_nsec);
 #endif
-	    //cv::imshow("fb", out);
+        if ((img_w != bgr.cols) || (img_h != bgr.rows))
+            cv::resize(bgr, bgr, cv::Size(img_w, img_h));  
+        cv::imshow("fb", bgr);
 #ifndef LUCKFOX    
-        cv::resize(bgr, out2, cv::Size(img_w, img_h));  
-        cv::imshow("LiveVideo", out2);
         cv::waitKey(1);
 #endif        
     }

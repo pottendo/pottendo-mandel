@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
     if (argc > 1)
     {
         char opt;
-        while ((opt = getopt(argc, argv, "bv:r:h")) != -1)
+        while ((opt = getopt(argc, argv, "bv:r:h")) != (char)-1)
         {
             switch (opt)
             {
@@ -64,10 +64,8 @@ int main(int argc, char *argv[])
                     if (*x == 'x')
                     {
                         img_h = strtol(x + 1, NULL, 10);
-                        if ((img_w > 0) && (img_w > 0)) {
-                            log_msg("resolution set: %dx%d\n", img_w, img_h);
+                        if ((img_w > 0) && (img_w > 0))
                             break;
-                        }
                     }
                 } // else fallthrough
             case 'h':
@@ -76,13 +74,15 @@ int main(int argc, char *argv[])
                 printf("Usage: %s [-b] [-v <video device nr>] [-r resolution in form <XxY> (e.g.: -r 800x480)]\n", argv[0]);
                 return 0;
             default:
-                fprintf(stderr, "Unexpected error in getopt\n");
+                fprintf(stderr, "Unexpected error in getopt: %c/%d\n", (isprint(opt)?opt:'.'), opt);
                 return 1;
             }
         }
     }
     pthread_mutex_init(&logmutex, NULL);
     log_msg("Welcome mandelbrot...\n");
+    log_msg("blending %sactivated\n", blend ? "" : "de");
+    log_msg("resolution set: %dx%d\n", img_w, img_h);
     stacks = alloc_stack;
     cv = setup_screen();
     if (!cv) cv = alloc_canvas;
