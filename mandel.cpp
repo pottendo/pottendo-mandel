@@ -37,6 +37,7 @@ typedef struct
     point_t rd;
 } rec_t;
 
+#ifndef __ZEPHYR__
 int main(int argc, char *argv[])
 {
     if (argc > 1)
@@ -79,10 +80,16 @@ int main(int argc, char *argv[])
             }
         }
     }
+#else
+int main(void)
+{
+#endif /* ZEPHYR */    
+#ifdef PTHREADS    
     pthread_mutex_init(&logmutex, NULL);
+#endif    
     log_msg("Welcome mandelbrot...\n");
     log_msg("blending %sactivated\n", blend ? "" : "de");
-    log_msg("resolution set: %dx%d\n", img_w, img_h);
+    log_msg("resolution set: %dx%d\n", IMG_W, IMG_H);
     stacks = alloc_stack;
     cv = setup_screen();
     if (!cv) cv = alloc_canvas;
@@ -104,8 +111,8 @@ std::vector<rec_t> recs = {
 #else
 std::vector<rec_t> recs = {
     {{00, IMG_H / 4}, {IMG_W / 2, IMG_H / 4 * 3}},
-    {{00, IMG_H / 4}, {IMG_W / 2, IMG_H / 4 * 3}},
-    {{IMG_W / 4, IMG_H / 4}, {IMG_W / 4 + 200, IMG_H / 4 * 3}},
+//    {{00, IMG_H / 4}, {IMG_W / 2, IMG_H / 4 * 3}},
+//    {{IMG_W / 4, IMG_H / 4}, {IMG_W / 4 + 200, IMG_H / 4 * 3}},
 };
 #endif
 
@@ -117,7 +124,7 @@ std::vector<rec_t> recs = {
                                             static_cast<MTYPE>(INTIFY(0.5)), static_cast<MTYPE>(INTIFY(1.0)), 
                                             IMG_W / PIXELW, IMG_H, xrat};
         zoom_ui(m);
-        return 0;
+        
         for (size_t i = 0; i < recs.size(); i++)
         {
             auto it = &recs[i];
@@ -128,9 +135,14 @@ std::vector<rec_t> recs = {
         delete m;
         hook2();
     }
-#ifndef C64
+#ifndef __ZEPHYR__
     delete cv;
     delete stacks;
+#else    
+    while (cv++) 
+    { 
+        sleep(1); 
+    }
 #endif
     return 0;
 }

@@ -173,14 +173,14 @@ void *anim_thread(void *arg)
         pthread_mutex_unlock(&anim_ctrl);
         Delay(2);
     }
-    pthread_mutex_unlock(&anim_ctrl);
+    //pthread_mutex_unlock(&anim_ctrl);
     log_msg("%s: terminating animation thread.\n", __FUNCTION__);
     return NULL;
 }
 
 CANVAS_TYPE *amiga_setup_screen(void)
 {
-    myScreen = OpenScreen(&Screen1); /* & (ampersand) means address of */
+    myScreen = OpenScreen(&Screen1);
     ScreenToFront(myScreen);
     ShowTitle(myScreen, TRUE);
     MakeScreen(myScreen);
@@ -273,7 +273,7 @@ char fetch_key(struct IntuiMessage *pIMsg, struct Window *win)
 
 int amiga_setpixel(void *not_used, int x, int y, int col)
 {
-    //    log_msg("%s: %dx%d->%d\n", __FUNCTION__, x, y, col);
+    //log_msg("%s: %dx%d->%d\n", __FUNCTION__, x, y, col);
     SetAPen(rp, col);
     WritePixel(rp, x, y + 10);
     //    Move(rp, x, y+10);
@@ -567,12 +567,11 @@ void amiga_zoom_ui(mandel<MTYPE> *m)
         }
     }
 #ifdef PTHREADS
-    //pthread_mutex_lock(&anim_ctrl);
-    animation = false;
-    //pthread_mutex_unlock(&anim_ctrl);
-    Delay(10);
     pthread_mutex_lock(&anim_ctrl);
+    animation = false;
+    pthread_mutex_unlock(&anim_ctrl);
 #endif    
+    Delay(2);
     CloseWindow(myWindow);
     if (myScreen)
         CloseScreen(myScreen); /* Close screen using myScreen pointer */

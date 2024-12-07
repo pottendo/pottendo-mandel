@@ -57,7 +57,9 @@ extern pthread_mutex_t logmutex;
 #include <exec/memory.h>
 #include <devices/inputevent.h>
 #include <clib/console_protos.h>
+#ifdef __cplusplus
 #include <vector>
+#endif
 
 #define CANVAS_TYPE char
 #define SCRDEPTH 6  // or 6 for 64cols lesser resolution
@@ -86,6 +88,7 @@ extern pthread_mutex_t logmutex;
 #define WINX (IMG_W / 1)
 #define WINY (IMG_H / 1)
 
+#ifdef __cplusplus
 extern int iter;
 #include "mandelbrot.h"
 CANVAS_TYPE *amiga_setup_screen(void);
@@ -95,7 +98,7 @@ void amiga_zoom_ui(mandel<MTYPE> *m);
 #define zoom_ui amiga_zoom_ui
 #define hook1(...)
 #define hook2(...)
-
+#endif /* __cplusplus */
 #else  /* __amiga__ */
 
 #ifdef __linux__ //-------------------------------------------------------------------
@@ -145,11 +148,12 @@ extern int img_w, img_h;
 #include "mandelbrot.h"
 void luckfox_play(mandel<MTYPE> *mandel);
 
-#else //-------------------------------------------------------------------
-#if defined(C64) || defined (__ZEPHYR__)
+#else 
+#if defined(C64) || defined (__ZEPHYR__) //--------------------------------------------
 #if (NO_THREADS > 16)
 #error "too many threads for Orangencart's STACK_SIZE"
 #endif
+#define CANVAS_TYPE char
 #define IMG_W 160
 #define IMG_H 200
 #define SCRDEPTH 2
