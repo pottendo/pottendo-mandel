@@ -59,7 +59,8 @@ extern pthread_mutex_t logmutex;
 #include <clib/console_protos.h>
 #include <vector>
 
-#define SCRDEPTH 4  // or 6 for 64cols lesser resolution
+#define CANVAS_TYPE char
+#define SCRDEPTH 6  // or 6 for 64cols lesser resolution
 #define PAL_SIZE (1L << SCRDEPTH)
 #define PIXELW 1
 
