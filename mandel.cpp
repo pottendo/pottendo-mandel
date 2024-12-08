@@ -10,13 +10,12 @@ pthread_mutex_t canvas_sem;
 pthread_mutex_t logmutex;
 void log_msg(const char *s, ...)
 {
-    static char _t[256];
     va_list args;
-    pthread_mutex_lock(&logmutex);
     va_start(args, s);
-    vsnprintf(_t, 255, s, args);
-    printf("%s", _t);
+    pthread_mutex_lock(&logmutex);
+    vprintf(s, args);
     pthread_mutex_unlock(&logmutex);
+    va_end(args);
 }
 #endif  /* PTHREADS */
 
@@ -83,7 +82,7 @@ int main(int argc, char *argv[])
 #else
 int main(void)
 {
-    sleep(1);   // needed in Zephyr, let bootbanner print
+    usleep(1000*5); // wait for boot banner
 #endif /* ZEPHYR */    
 #ifdef PTHREADS    
     pthread_mutex_init(&logmutex, NULL);
@@ -140,9 +139,14 @@ std::vector<rec_t> recs = {
 #ifndef __ZEPHYR__
     delete cv;
     delete stacks;
-#else    
-    log_msg("system halted...\n");
-    while (1) sleep(10);
+#else
+    log_msg("system halted");
+    while (1)
+    {   
+        log_msg(".");
+        fflush(stdout);
+        sleep(5);
+    }
 #endif
     return 0;
 }

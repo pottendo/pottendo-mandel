@@ -170,16 +170,19 @@ class mandel
         // sched_yield();
     }
 
-    void dump_bits(uint8_t c)
+    void dump_bits(uint8_t c, uint8_t *buf)
     {
+
         for (int i = 7; i >= 0; i--)
         {
-            log_msg("%c", (c & (1 << i)) ? '*' : '.');
+            *buf++ = (c & (1 << i)) ? '*' : '.';
         }
     }
 
     void canvas_dump(canvas_t c)
     {
+        static uint8_t *b, *s;
+        s = b = new uint8_t[IMG_W * 8 + 1];
         for (int y = 0; y < IMG_H; y++)
         {
             log_msg("%03d: ", y);
@@ -187,10 +190,14 @@ class mandel
             for (auto i = 0; i < IMG_W / 1; i += 8)
             {
                 // log_msg("idx: %032d ", offs + i);
-                dump_bits(c[offs + i]);
+                dump_bits(c[offs + i], b);
+                b += 8;
             }
-            log_msg("\n");
+            *b = '\0';
+            log_msg("%s\n", s);
+            b = s;
         }
+        delete[] s;
     }
 
     /* class private functinos */
@@ -303,12 +310,15 @@ class mandel
             log_msg("pthread setschedparam (pol=%d) failed for thread %d, %d - need sudo!\n", SCHED_RR, p->tno, ret);
         pthread_getschedparam(worker_tasks[p->tno], &pol, &sp);
         log_msg("starting thread %d with priority %d\n", p->tno, sp.sched_priority);
+#else        
+        log_msg("starting thread %d...\n", p->tno);
 #endif
 #endif
         sched_yield();
         mandel_helper(p->xl, p->yl, p->xh, p->yh, p->incx, p->incy, p->xoffset, p->yoffset, p->width, p->height);
-        //log_msg("finished thread %d\n", p->tno);
+        log_msg("finished thread %d\n", p->tno);
         VSem(p->sem); // report we've done our job
+        pthread_exit(NULL); // normally not needed
         return 0;
     }
 
@@ -357,14 +367,10 @@ class mandel
                     perror("clock_gettime()");
                 //log_msg("start at %ld.%06ld\n", tstart.tv_sec % 60, tstart.tv_nsec / 1000);
                 mandel_wrapper(tp[t]);
-#endif
-#ifdef __linux__
+#else                
                 ret = pthread_detach(th);
                 if (ret != 0)
                     log_msg("pthread detach failed for thread %d, %d\n", t, ret);
-#endif
-#if (CONFIG_LOG_DEFAULT_LEVEL > 3)
-                usleep(20 * 1000); // needed to make zephyr happy when loggin is enabled. Seems some race with the the KickOff mutex. Maybe some bug?
 #endif
                 t++;
             }
@@ -384,10 +390,10 @@ class mandel
             // usleep(250 * 1000);
             V(tp[i]->go);
         }
-        // log_msg("main thread waiting for %i threads...\n", NO_THREADS);
+        //log_msg("main thread waiting for %i threads...\n", NO_THREADS);
         for (int i = NO_THREADS; i; i--)
         {
-            // log_msg("main thread waiting for %i threads...\n", i);
+            log_msg("main thread waiting for %i threads...\n", i);
             PSem(master_sem); // wait until all workers have finished
         }
 
@@ -395,7 +401,7 @@ class mandel
             perror("clock_gettime()");
         //log_msg("end at %ld.%06ld\n", tend.tv_sec % 60, tend.tv_nsec / 1000);
 
-        //log_msg("all threads finished.\n");
+        log_msg("all threads finished.\n");
         free_ressources();
         stop = 0;
     }
@@ -408,9 +414,9 @@ class mandel
 #ifdef __ZEPHYR__
             // in recent Zephyr not needed enymore - even crashes soon!
             // needed to cleanup all resources, namely a mutex within a pthread
-            // void *retval;
-            // if ((ret = pthread_join(worker_tasks[i], &retval)) != 0)
-            //    log_msg("pthread_join failed: %d\n", ret);
+            //void *retval;
+            //if ((ret = pthread_join(worker_tasks[i], &retval)) != 0)
+              //  log_msg("pthread_join failed: %d\n", ret);
 #endif
             if ((ret = pthread_attr_destroy(&attr[i])) != 0)
                 log_msg("pthread_attr_destroy failed: %d\n", ret);

@@ -32,7 +32,7 @@ void log_msg(const char *s, ...);
 #include <stdio.h>
 #include <time.h>
 #include <pthread.h>
-#define NO_THREADS 4 // max 16 for Orangecart!
+#define NO_THREADS 16 // max 16 for Orangecart!
 #ifdef PTHREAD_STACK_MIN
 #define STACK_SIZE PTHREAD_STACK_MIN
 #else
