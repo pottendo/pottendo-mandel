@@ -36,9 +36,12 @@ typedef struct
 #ifdef PTHREADS
 #include <pthread.h>
 #include <semaphore.h>
+#include <mqueue.h>
 extern pthread_mutex_t canvas_sem;
 #define P P_
 #define V V_
+
+#define MQ_NAME "/mandel-feed"
 #else
 // make those calls dummies
 #define pthread_mutex_init(...)
@@ -103,8 +106,19 @@ class mandel
             return ostr;
         }
     };
+    struct tqparam_t
+    {
+        int tno;
+        sem_t &sem;
+        mandel<myDOUBLE> *mo;
+
+        tqparam_t(int t, sem_t &se, mandel<myDOUBLE> *th)
+            : tno(t), sem(se), mo(th)
+        {}
+    };
 
     tparam_t *tp[NO_THREADS];
+    tqparam_t *tpq[NO_THREADS];
     // char *stacks[NO_THREADS];
     int &max_iter = MAX_ITER;
     uint8_t _mask;
@@ -112,6 +126,7 @@ class mandel
     /* class local variables */
 #ifdef PTHREADS
     pthread_attr_t attr[NO_THREADS];
+    struct mq_attr mqattr;
 #endif
     pthread_t worker_tasks[NO_THREADS];
     sem_t master_sem;
@@ -219,10 +234,8 @@ class mandel
         return r * r + i * i;
     }
 
-    int mandel_calc_point(myDOUBLE x, myDOUBLE y)
+    int mandel_calc_point(const std::complex<myDOUBLE> point)
     {
-        const std::complex<myDOUBLE> point{x, y};
-        // std::cout << "calc: " << point << '\n';
         std::complex<myDOUBLE> z = point;
         int nb_iter = 1;
         while (abs2(z) < INTIFY2(4) && nb_iter <= max_iter)
@@ -234,6 +247,14 @@ class mandel
             return (col_pal[(nb_iter % (PAL_SIZE - 1)) + 1]);
         else
             return 0;
+
+    }
+
+    int mandel_calc_point(myDOUBLE x, myDOUBLE y)
+    {
+        const std::complex<myDOUBLE> point{x, y};
+        // std::cout << "calc: " << point << '\n';
+        return mandel_calc_point(point);
     }
 
     void mandel_helper(myDOUBLE xl, myDOUBLE yl, myDOUBLE xh, myDOUBLE yh, myDOUBLE incx, myDOUBLE incy, int xo, int yo, int width, int height)
@@ -318,10 +339,8 @@ class mandel
         mandel_helper(p->xl, p->yl, p->xh, p->yh, p->incx, p->incy, p->xoffset, p->yoffset, p->width, p->height);
         log_msg("finished thread %d\n", p->tno);
         VSem(p->sem); // report we've done our job
-        pthread_exit(NULL); // normally not needed
         return 0;
     }
-
 
     void mandel_setup(const int thread_no, myDOUBLE sx, myDOUBLE sy, myDOUBLE tx, myDOUBLE ty)
     {
@@ -424,6 +443,83 @@ class mandel
             delete tp[i];
         }
     }
+    static void *mandel_qwrapper(void *param)
+    {
+        tqparam_t *p = static_cast<tqparam_t *>(param);
+        p->mo->mandel_qwrapper_2(param);
+        pthread_exit(nullptr);
+        return nullptr;
+    }
+
+    int mandel_qwrapper_2(void *param)
+    {        
+        mqd_t mq;
+        tqparam_t *p = (tqparam_t *)param;
+
+        mq = mq_open(MQ_NAME, O_CREAT | O_RDONLY, 0644, &mqattr);
+        if (mq == (mqd_t)-1)
+        {
+            log_msg("%s: mq_open failed: %d\n", __FUNCTION__, errno);
+        }
+        log_msg("thread %d ready\n", p->tno);
+        VSem(p->sem);
+        ssize_t res;
+        point_t point;
+        myDOUBLE stepx = ssw * xratio;
+        myDOUBLE stepy = ssh;
+
+        while (1)
+        {
+            res = mq_receive(mq, (char *)&point, sizeof(point), NULL);
+            if (res < 0)
+                log_msg("%s: mq_receive failed: %d\n", __FUNCTION__, errno);
+
+            int d = mandel_calc_point(std::complex<myDOUBLE>(point.x, point.y));
+            canvas_setpx(canvas, point.x * stepx, point.y * stepy, d);
+        }
+        return 0;
+    }
+
+    void mandel_mq(const int thread_no, myDOUBLE sx, myDOUBLE sy, myDOUBLE tx, myDOUBLE ty)
+    {
+        mqd_t mq;
+        pthread_t th;
+        int ret;
+        mandel_presetup(sx, sy, tx, ty);
+
+        mqattr = {0, thread_no, sizeof(point_t), 0};
+        mq = mq_open(MQ_NAME, O_CREAT | O_RDWR, 0644, &mqattr);
+        if (mq == (mqd_t)-1)
+        {
+            log_msg("%s: mq_open failed: %d\n", __FUNCTION__, errno);
+            exit(1);
+        }
+
+        for (auto t = 0; t < thread_no; t++)
+        {
+            tpq[t] = new tqparam_t(t, master_sem, this);
+            pthread_attr_init(&attr[t]);
+            ret = pthread_attr_setstack(&attr[t], stacks + t * STACK_SIZE, STACK_SIZE);
+            if (ret != 0)
+                log_msg("setstack: %d - ssize = %d\n", ret, STACK_SIZE);
+            if ((ret = pthread_create(&th, &attr[t], mandel_qwrapper, tpq[t])) != 0)
+                log_msg("pthread create failed for thread %d, %d\n", t, ret);
+            worker_tasks[t] = th;
+        }
+        // wait for all threads to be launched
+        for (auto t = thread_no; t != 0; t--)
+            PSem(master_sem);
+
+        for (int x = 0; x < IMG_W; x++) {
+            for (auto y = 0; y < IMG_H; y++) {
+                point_t p{x, y};
+                ret = mq_send(mq, (char *) &p, sizeof(p), 0);
+                if (ret < 0)
+                    log_msg("%s: mq_send failed: %d\n", __FUNCTION__, errno);
+            }
+        }
+        log_msg("%s: done.\n", __FUNCTION__);        
+    }
 
 public:
     mandel(canvas_t c, char *st, myDOUBLE xl, myDOUBLE yl, myDOUBLE xh, myDOUBLE yh, int xr, int yr, myDOUBLE xrat = 1.0)
@@ -452,8 +548,12 @@ public:
         char c1;
         read(0, &c1, 1);
 #endif
+#ifdef MANDEL_MQ
+        mandel_mq(NO_THREADS, xl, yl, xh, yh);
+#else
         mandel_setup(sqrt(NO_THREADS), xl, yl, xh, yh); // initialize some stuff, but don't calculate
         go();
+#endif        
         dump_result();
     }
     ~mandel()
