@@ -10,12 +10,12 @@ pthread_mutex_t canvas_sem;
 pthread_mutex_t logmutex;
 void log_msg(const char *s, ...)
 {
-    char t[256];
+    static char _t[256];
     va_list args;
     pthread_mutex_lock(&logmutex);
     va_start(args, s);
-    vsnprintf(t, 256, s, args);
-    printf("%s", t);
+    vsnprintf(_t, 255, s, args);
+    printf("%s", _t);
     pthread_mutex_unlock(&logmutex);
 }
 #endif  /* PTHREADS */
@@ -83,13 +83,15 @@ int main(int argc, char *argv[])
 #else
 int main(void)
 {
+    sleep(1);   // needed in Zephyr, let bootbanner print
 #endif /* ZEPHYR */    
 #ifdef PTHREADS    
     pthread_mutex_init(&logmutex, NULL);
-#endif    
+#endif
     log_msg("Welcome mandelbrot...\n");
     log_msg("blending %sactivated\n", blend ? "" : "de");
     log_msg("resolution set: %dx%d\n", IMG_W, IMG_H);
+
     stacks = alloc_stack;
     cv = setup_screen();
     if (!cv) cv = alloc_canvas;
@@ -110,7 +112,7 @@ std::vector<rec_t> recs = {
     };
 #else
 std::vector<rec_t> recs = {
-    {{00, IMG_H / 4}, {IMG_W / 2, IMG_H / 4 * 3}},
+//    {{00, IMG_H / 4}, {IMG_W / 2, IMG_H / 4 * 3}},
 //    {{00, IMG_H / 4}, {IMG_W / 2, IMG_H / 4 * 3}},
 //    {{IMG_W / 4, IMG_H / 4}, {IMG_W / 4 + 200, IMG_H / 4 * 3}},
 };
@@ -139,10 +141,8 @@ std::vector<rec_t> recs = {
     delete cv;
     delete stacks;
 #else    
-    while (cv++) 
-    { 
-        sleep(1); 
-    }
+    log_msg("system halted...\n");
+    while (1) sleep(10);
 #endif
     return 0;
 }

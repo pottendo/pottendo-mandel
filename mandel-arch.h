@@ -1,7 +1,7 @@
 #ifndef __MANDEL_ARCH_H__
 #define __MANDEL_ARCH_H__
 /* definition section for globals to adapt for some variation */
-#define MTYPE double           //long long int  // double
+#define MTYPE double // long long int  // double
 //#define INTMATH              // goes along with int above, on Intels or other fast FPUs, double/float can be faster
 #define MAX_ITER_INIT 64
 //#define C64   // build for C64 GFX output
