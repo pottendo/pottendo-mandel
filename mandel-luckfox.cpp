@@ -285,7 +285,7 @@ void luckfox_play(mandel<MTYPE> *mandel)
         clock_gettime(CLOCK_REALTIME, &t1);
 #endif        
         if (blend)
-	        cv::addWeighted(bgr, 0.5, mmask, 0.5, 0.0, bgr);
+	        cv::addWeighted(bgr, 1.0, mmask, 2.5, 0.0, bgr);
         //    cv::bitwise_and(bgr, mmask, bgr);
 #ifdef BENCHMARK  
         clock_gettime(CLOCK_REALTIME, &t2);

@@ -41,7 +41,7 @@ extern pthread_mutex_t canvas_sem;
 #define P P_
 #define V V_
 
-#define MQ_NAME "/mandel-feed"
+#define MQ_NAME "/mandel_feed"
 #else
 // make those calls dummies
 #define pthread_mutex_init(...)
@@ -455,28 +455,45 @@ class mandel
     {        
         mqd_t mq;
         tqparam_t *p = (tqparam_t *)param;
-
+#ifdef __linux__
+        sched_param sp;
+        int pol = -1;
+        int ret;
+        ret = pthread_getschedparam(worker_tasks[p->tno], &pol, &sp);
+        if (ret != 0)
+            log_msg("ptherad_getschedparam()... failed: %d\n", ret);
+        sp.sched_priority = sp.sched_priority - 10;
+        if ((ret = pthread_setschedparam(worker_tasks[p->tno], SCHED_RR, &sp)) != 0)
+            log_msg("pthread setschedparam (pol=%d) failed for thread %d, %d - need sudo!\n", SCHED_RR, p->tno, ret);
+        pthread_getschedparam(worker_tasks[p->tno], &pol, &sp);
+        log_msg("starting thread %d with priority %d\n", p->tno, sp.sched_priority);
+#endif
         mq = mq_open(MQ_NAME, O_CREAT | O_RDONLY, 0644, &mqattr);
         if (mq == (mqd_t)-1)
         {
             log_msg("%s: mq_open failed: %d\n", __FUNCTION__, errno);
         }
-        log_msg("thread %d ready\n", p->tno);
         VSem(p->sem);
         ssize_t res;
         point_t point;
         myDOUBLE stepx = ssw * xratio;
         myDOUBLE stepy = ssh;
+        int tcount = 0;
 
         while (1)
         {
             res = mq_receive(mq, (char *)&point, sizeof(point), NULL);
             if (res < 0)
                 log_msg("%s: mq_receive failed: %d\n", __FUNCTION__, errno);
-
-            int d = mandel_calc_point(std::complex<myDOUBLE>(point.x, point.y));
-            canvas_setpx(canvas, point.x * stepx, point.y * stepy, d);
+            if (point.x < 0)
+                break;
+            tcount++;
+            canvas_setpx(canvas, point.x, point.y, 
+                         mandel_calc_point(std::complex<myDOUBLE>(point.x * stepx + transx, point.y *stepy + transy)));
         }
+        log_msg("%s: thread %d delivered %d results\n", __FUNCTION__, p->tno, tcount);
+        VSem(p->sem);
+        mq_close(mq);
         return 0;
     }
 
@@ -487,13 +504,29 @@ class mandel
         int ret;
         mandel_presetup(sx, sy, tx, ty);
 
-        mqattr = {0, thread_no, sizeof(point_t), 0};
+        mqattr.mq_flags = 0;
+        mqattr.mq_maxmsg = thread_no * 10;
+        mqattr.mq_msgsize = sizeof(point_t);
+        mqattr.mq_curmsgs = 0;
+
         mq = mq_open(MQ_NAME, O_CREAT | O_RDWR, 0644, &mqattr);
         if (mq == (mqd_t)-1)
         {
             log_msg("%s: mq_open failed: %d\n", __FUNCTION__, errno);
             exit(1);
         }
+#ifdef __linux__
+        sched_param sp;
+        int pol = -1;
+        ret = pthread_getschedparam(pthread_self(), &pol, &sp);
+        if (ret != 0)
+            log_msg("ptherad_getschedparam()... failed: %d\n", ret);
+        sp.sched_priority = sp.sched_priority + 90;
+        if ((ret = pthread_setschedparam(pthread_self(), SCHED_RR, &sp)) != 0)
+            log_msg("pthread setschedparam (pol=%d) failed for main thread, %d - need sudo!\n", SCHED_RR, ret);
+        pthread_getschedparam(pthread_self(), &pol, &sp);
+        log_msg("main thread with priority %d\n", sp.sched_priority);
+#endif
 
         for (auto t = 0; t < thread_no; t++)
         {
@@ -509,7 +542,9 @@ class mandel
         // wait for all threads to be launched
         for (auto t = thread_no; t != 0; t--)
             PSem(master_sem);
-
+        log_msg("%s: feeding calc...\n", __FUNCTION__);
+        if (clock_gettime(CLOCK_REALTIME, &tstart) < 0)
+            perror("clock_gettime()");       
         for (int x = 0; x < IMG_W; x++) {
             for (auto y = 0; y < IMG_H; y++) {
                 point_t p{x, y};
@@ -518,7 +553,19 @@ class mandel
                     log_msg("%s: mq_send failed: %d\n", __FUNCTION__, errno);
             }
         }
-        log_msg("%s: done.\n", __FUNCTION__);        
+        if (clock_gettime(CLOCK_REALTIME, &tend) < 0)
+            perror("clock_gettime()");
+
+        // send end-marker '-1' in xcoord.
+        point_t pe{-1, -1};
+        for(int i = 0; i < thread_no; i++)
+            mq_send(mq, (const char*) &pe, sizeof(pe), 0);
+        // end-sync
+        for (auto t = thread_no; t != 0; t--)
+            PSem(master_sem);
+        log_msg("%s: done.\n", __FUNCTION__);
+
+        mq_close(mq);
     }
 
 public:
@@ -548,12 +595,14 @@ public:
         char c1;
         read(0, &c1, 1);
 #endif
-#ifdef MANDEL_MQ
-        mandel_mq(NO_THREADS, xl, yl, xh, yh);
-#else
-        mandel_setup(sqrt(NO_THREADS), xl, yl, xh, yh); // initialize some stuff, but don't calculate
-        go();
-#endif        
+        if (do_mq) {
+            mandel_mq(NO_THREADS, xl, yl, xh, yh);
+        }
+        else
+        {
+            mandel_setup(sqrt(NO_THREADS), xl, yl, xh, yh); // initialize some stuff, but don't calculate
+            go();
+        }
         dump_result();
     }
     ~mandel()

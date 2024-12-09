@@ -144,7 +144,7 @@ void luckfox_rect(CANVAS_TYPE *c, int x1, int y1, int x2, int y2, int col);
 #define hook1(...)
 #define hook2(...)
 
-extern int iter, video_device, blend;
+extern int iter, video_device, blend, do_mq;
 extern int img_w, img_h;
 #include "mandelbrot.h"
 void luckfox_play(mandel<MTYPE> *mandel);

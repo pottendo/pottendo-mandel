@@ -22,7 +22,7 @@ void log_msg(const char *s, ...)
 // globals
 int img_w = 800, img_h=480;   // used by luckfox
 int iter = MAX_ITER_INIT;     // used by Amiga
-int video_device, blend;      // used by opencv
+int video_device, blend, do_mq;      // used by opencv
 MTYPE xrat = 1.0;
 
 static CANVAS_TYPE *cv;
@@ -42,12 +42,15 @@ int main(int argc, char *argv[])
     if (argc > 1)
     {
         char opt;
-        while ((opt = getopt(argc, argv, "bv:r:h")) != (char)-1)
+        while ((opt = getopt(argc, argv, "bqv:r:h")) != (char)-1)
         {
             switch (opt)
             {
             case 'b':
                 blend = 1;
+                break;
+            case 'q':
+                do_mq = 1;
                 break;
             case 'v':
                 if (optarg)
@@ -71,7 +74,7 @@ int main(int argc, char *argv[])
             case 'h':
             case '?':
                 // Print help message and exit
-                printf("Usage: %s [-b] [-v <video device nr>] [-r resolution in form <XxY> (e.g.: -r 800x480)]\n", argv[0]);
+                printf("Usage: %s [-b] [-q] [-v <video device nr>] [-r resolution in form <XxY> (e.g.: -r 800x480)]\n", argv[0]);
                 return 0;
             default:
                 fprintf(stderr, "Unexpected error in getopt: %c/%d\n", (isprint(opt)?opt:'.'), opt);
