@@ -126,9 +126,18 @@ class mandel
     /* class local variables */
 #ifdef PTHREADS
     pthread_attr_t attr[NO_THREADS];
+    // mq attributes for message queue setup
     struct mq_attr mqattr;
+
+    // Semaphores for prod/consumer setup
+    sem_t pcempty;  // Counts empty slots in the buffer
+    sem_t pcfull;   // Counts full slots in the buffer
+    pthread_mutex_t pcmutex;
+    int pcin = 0;
+    int pcout = 0;
+    #define PCBUFFER_SIZE (NO_THREADS * 10)
+    point_t pcbuffer[PCBUFFER_SIZE];
 #endif
-    pthread_t worker_tasks[NO_THREADS];
     sem_t master_sem;
 
     canvas_t canvas;
@@ -323,13 +332,13 @@ class mandel
         sched_param sp;
         int pol = -1;
         int ret;
-        ret = pthread_getschedparam(worker_tasks[p->tno], &pol, &sp);
+        ret = pthread_getschedparam(pthread_self(), &pol, &sp);
         if (ret != 0)
-            log_msg("ptherad_getschedparam()... failed: %d\n", ret);
+            log_msg("pthread_getschedparam()... failed: %d\n", ret);
         sp.sched_priority = sp.sched_priority + (p->tno % 3) + 1;
-        if ((ret = pthread_setschedparam(worker_tasks[p->tno], SCHED_RR, &sp)) != 0)
+        if ((ret = pthread_setschedparam(pthread_self(), SCHED_RR, &sp)) != 0)
             log_msg("pthread setschedparam (pol=%d) failed for thread %d, %d - need sudo!\n", SCHED_RR, p->tno, ret);
-        pthread_getschedparam(worker_tasks[p->tno], &pol, &sp);
+        pthread_getschedparam(pthread_self(), &pol, &sp);
         log_msg("starting thread %d with priority %d\n", p->tno, sp.sched_priority);
 #else        
         log_msg("starting thread %d...\n", p->tno);
@@ -380,7 +389,6 @@ class mandel
                     log_msg("setstack: %d - ssize = %d\n", ret, STACK_SIZE);
                 if ((ret = pthread_create(&th, &attr[t], mandel_wrapper, tp[t])) != 0)
                     log_msg("pthread create failed for thread %d, %d\n", t, ret);
-                worker_tasks[t] = th;
 #ifndef PTHREADS
                 if (clock_gettime(CLOCK_REALTIME, &tstart) < 0)
                     perror("clock_gettime()");
@@ -430,19 +438,46 @@ class mandel
         for (int i = 0; i < NO_THREADS; i++)
         {
             int ret;
-#ifdef __ZEPHYR__
-            // in recent Zephyr not needed enymore - even crashes soon!
-            // needed to cleanup all resources, namely a mutex within a pthread
-            //void *retval;
-            //if ((ret = pthread_join(worker_tasks[i], &retval)) != 0)
-              //  log_msg("pthread_join failed: %d\n", ret);
-#endif
             if ((ret = pthread_attr_destroy(&attr[i])) != 0)
                 log_msg("pthread_attr_destroy failed: %d\n", ret);
 
             delete tp[i];
         }
     }
+
+
+    inline int produce(point_t &p, mqd_t mq = (mqd_t) -1)
+    {
+        return mq_send(mq, (char *) &p, sizeof(point_t), 0);
+    }
+
+    inline int consume(point_t &p, mqd_t mq = (mqd_t) -1)
+    {
+         return mq_receive(mq, (char *)&p, sizeof(point_t), NULL);
+    }
+
+    inline int pcproduce(point_t &p)
+    {
+        PSem(pcempty);
+        P(pcmutex);
+        pcbuffer[pcin] = p;
+        pcin = ((pcin+1) % PCBUFFER_SIZE);
+        V(pcmutex);
+        VSem(pcfull);
+        return 0;
+    }
+
+    inline int pcconsume(point_t &p)
+    {
+        PSem(pcfull);
+        P(pcmutex);
+        p = pcbuffer[pcout];
+        pcout = ((pcout+1) % PCBUFFER_SIZE);
+        V(pcmutex);
+        VSem(pcempty);
+        return 0;
+    }
+
     static void *mandel_qwrapper(void *param)
     {
         tqparam_t *p = static_cast<tqparam_t *>(param);
@@ -453,25 +488,29 @@ class mandel
 
     int mandel_qwrapper_2(void *param)
     {        
-        mqd_t mq;
+        mqd_t mq = (mqd_t) -1;
         tqparam_t *p = (tqparam_t *)param;
 #ifdef __linux__
         sched_param sp;
         int pol = -1;
         int ret;
-        ret = pthread_getschedparam(worker_tasks[p->tno], &pol, &sp);
+        ret = pthread_getschedparam(pthread_self(), &pol, &sp);
         if (ret != 0)
-            log_msg("ptherad_getschedparam()... failed: %d\n", ret);
+            log_msg("pthread_getschedparam()... failed: %d\n", ret);
         sp.sched_priority = sp.sched_priority - 10;
-        if ((ret = pthread_setschedparam(worker_tasks[p->tno], SCHED_RR, &sp)) != 0)
+        if ((ret = pthread_setschedparam(pthread_self(), SCHED_RR, &sp)) != 0)
             log_msg("pthread setschedparam (pol=%d) failed for thread %d, %d - need sudo!\n", SCHED_RR, p->tno, ret);
-        pthread_getschedparam(worker_tasks[p->tno], &pol, &sp);
+        pthread_getschedparam(pthread_self(), &pol, &sp);
         log_msg("starting thread %d with priority %d\n", p->tno, sp.sched_priority);
 #endif
-        mq = mq_open(MQ_NAME, O_CREAT | O_RDONLY, 0644, &mqattr);
-        if (mq == (mqd_t)-1)
+
+        if (do_mq == 1)
         {
-            log_msg("%s: mq_open failed: %d\n", __FUNCTION__, errno);
+            mq = mq_open(MQ_NAME, O_CREAT | O_RDONLY, 0644, &mqattr);
+            if (mq == (mqd_t)-1)
+            {
+                log_msg("%s: mq_open failed: %d\n", __FUNCTION__, errno);
+            }
         }
         VSem(p->sem);
         ssize_t res;
@@ -482,7 +521,8 @@ class mandel
 
         while (1)
         {
-            res = mq_receive(mq, (char *)&point, sizeof(point), NULL);
+            res = ((do_mq == 1) ? consume(point, mq) : pcconsume(point));
+            //log_msg("%s: thread %d received: %d,%d\n", __FUNCTION__, p->tno, point.x, point.y);
             if (res < 0)
                 log_msg("%s: mq_receive failed: %d\n", __FUNCTION__, errno);
             if (point.x < 0)
@@ -499,28 +539,31 @@ class mandel
 
     void mandel_mq(const int thread_no, myDOUBLE sx, myDOUBLE sy, myDOUBLE tx, myDOUBLE ty)
     {
-        mqd_t mq;
+        mqd_t mq = (mqd_t) -1;;
         pthread_t th;
         int ret;
         mandel_presetup(sx, sy, tx, ty);
 
         mqattr.mq_flags = 0;
-        mqattr.mq_maxmsg = thread_no * 10;
+        mqattr.mq_maxmsg = PCBUFFER_SIZE;
         mqattr.mq_msgsize = sizeof(point_t);
         mqattr.mq_curmsgs = 0;
 
-        mq = mq_open(MQ_NAME, O_CREAT | O_RDWR, 0644, &mqattr);
-        if (mq == (mqd_t)-1)
+        if (do_mq == 1)
         {
-            log_msg("%s: mq_open failed: %d\n", __FUNCTION__, errno);
-            exit(1);
+            mq = mq_open(MQ_NAME, O_CREAT | O_RDWR, 0644, &mqattr);
+            if (mq == (mqd_t)-1)
+            {
+                log_msg("%s: mq_open failed: %d\n", __FUNCTION__, errno);
+                exit(1);
+            }
         }
 #ifdef __linux__
         sched_param sp;
         int pol = -1;
         ret = pthread_getschedparam(pthread_self(), &pol, &sp);
         if (ret != 0)
-            log_msg("ptherad_getschedparam()... failed: %d\n", ret);
+            log_msg("pthread_getschedparam()... failed: %d\n", ret);
         sp.sched_priority = sp.sched_priority + 90;
         if ((ret = pthread_setschedparam(pthread_self(), SCHED_RR, &sp)) != 0)
             log_msg("pthread setschedparam (pol=%d) failed for main thread, %d - need sudo!\n", SCHED_RR, ret);
@@ -537,7 +580,6 @@ class mandel
                 log_msg("setstack: %d - ssize = %d\n", ret, STACK_SIZE);
             if ((ret = pthread_create(&th, &attr[t], mandel_qwrapper, tpq[t])) != 0)
                 log_msg("pthread create failed for thread %d, %d\n", t, ret);
-            worker_tasks[t] = th;
         }
         // wait for all threads to be launched
         for (auto t = thread_no; t != 0; t--)
@@ -548,7 +590,8 @@ class mandel
         for (int x = 0; x < IMG_W; x++) {
             for (auto y = 0; y < IMG_H; y++) {
                 point_t p{x, y};
-                ret = mq_send(mq, (char *) &p, sizeof(p), 0);
+                ret = ((do_mq == 1) ? produce(p, mq) : pcproduce(p));
+                //log_msg("%s: main thread produced: %d,%d\n", __FUNCTION__, p.x, p.y);
                 if (ret < 0)
                     log_msg("%s: mq_send failed: %d\n", __FUNCTION__, errno);
             }
@@ -559,10 +602,13 @@ class mandel
         // send end-marker '-1' in xcoord.
         point_t pe{-1, -1};
         for(int i = 0; i < thread_no; i++)
-            mq_send(mq, (const char*) &pe, sizeof(pe), 0);
-        // end-sync
+            ret = ((do_mq == 1) ? produce(pe, mq) : pcproduce(pe));
+
+        // end-sync & cleanup
         for (auto t = thread_no; t != 0; t--)
             PSem(master_sem);
+        for (auto t = 0; t < thread_no; t++)
+            delete tpq[t];
         log_msg("%s: done.\n", __FUNCTION__);
 
         mq_close(mq);
@@ -595,10 +641,17 @@ public:
         char c1;
         read(0, &c1, 1);
 #endif
+#ifdef PTHREADS
+        // Initialize semaphores and mutex
+        sem_init(&pcempty, 0, PCBUFFER_SIZE); // Initially, all slots are empty
+        sem_init(&pcfull, 0, 0);           // Initially, no slots are full
+        pcout = pcin = 0;
+        pthread_mutex_init(&pcmutex, NULL);
         if (do_mq) {
             mandel_mq(NO_THREADS, xl, yl, xh, yh);
         }
         else
+#endif        
         {
             mandel_setup(sqrt(NO_THREADS), xl, yl, xh, yh); // initialize some stuff, but don't calculate
             go();

@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
     if (argc > 1)
     {
         char opt;
-        while ((opt = getopt(argc, argv, "bqv:r:h")) != (char)-1)
+        while ((opt = getopt(argc, argv, "bq:v:r:h")) != (char)-1)
         {
             switch (opt)
             {
@@ -50,7 +50,11 @@ int main(int argc, char *argv[])
                 blend = 1;
                 break;
             case 'q':
-                do_mq = 1;
+                if (optarg)
+                    do_mq = strtol(optarg, NULL, 10);
+#ifndef PTHREADS
+                log_msg("not useful without threads - ignoring -q \n");
+#endif                    
                 break;
             case 'v':
                 if (optarg)
@@ -74,7 +78,7 @@ int main(int argc, char *argv[])
             case 'h':
             case '?':
                 // Print help message and exit
-                printf("Usage: %s [-b] [-q] [-v <video device nr>] [-r resolution in form <XxY> (e.g.: -r 800x480)]\n", argv[0]);
+                printf("Usage: %s [-b] [-q <0|1|2> select thread policy] [-v <video device nr>] [-r resolution in form <XxY> (e.g.: -r 800x480)]\n", argv[0]);
                 return 0;
             default:
                 fprintf(stderr, "Unexpected error in getopt: %c/%d\n", (isprint(opt)?opt:'.'), opt);
@@ -93,6 +97,12 @@ int main(void)
     log_msg("Welcome mandelbrot...\n");
     log_msg("blending %sactivated\n", blend ? "" : "de");
     log_msg("resolution set: %dx%d\n", IMG_W, IMG_H);
+#ifdef PTHREADS    
+    log_msg("using %s\n", 
+        (do_mq == 0) ? "even allocation to threads" :
+        (do_mq == 1) ? "message queue sync" :
+        (do_mq > 1) ? "producer consumer sync": "unknown");
+#endif        
 
     stacks = alloc_stack;
     cv = setup_screen();
