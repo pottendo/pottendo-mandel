@@ -135,7 +135,7 @@ class mandel
     pthread_mutex_t pcmutex;
     int pcin = 0;
     int pcout = 0;
-    #define PCBUFFER_SIZE (NO_THREADS * 10)
+    #define PCBUFFER_SIZE (NO_THREADS + 16)
     point_t pcbuffer[PCBUFFER_SIZE];
 #endif
     sem_t master_sem;
@@ -357,7 +357,6 @@ class mandel
         mandel_presetup(sx, sy, tx, ty);
         myDOUBLE stepx = (xres / thread_no) * ssw * xratio;
         myDOUBLE stepy = (yres / thread_no) * ssh;
-        pthread_t th = (pthread_t)0;
 
         if (thread_no > 16)
         {
@@ -373,7 +372,6 @@ class mandel
             int xoffset = w * tx;
             for (int ty = 0; ty < thread_no; ty++)
             {
-                int ret;
                 int yoffset = h * ty;
                 tp[t] = new tparam_t(t,
                                      w, h,
@@ -383,18 +381,20 @@ class mandel
                                      ty * stepy + stepy + transy,
                                      ssw, ssh, xoffset, yoffset,
                                      master_sem, this);
-                pthread_attr_init(&attr[t]);
-                ret = pthread_attr_setstack(&attr[t], stacks + t * STACK_SIZE, STACK_SIZE);
-                if (ret != 0)
-                    log_msg("setstack: %d - ssize = %d\n", ret, STACK_SIZE);
-                if ((ret = pthread_create(&th, &attr[t], mandel_wrapper, tp[t])) != 0)
-                    log_msg("pthread create failed for thread %d, %d\n", t, ret);
 #ifndef PTHREADS
                 if (clock_gettime(CLOCK_REALTIME, &tstart) < 0)
                     perror("clock_gettime()");
                 //log_msg("start at %ld.%06ld\n", tstart.tv_sec % 60, tstart.tv_nsec / 1000);
                 mandel_wrapper(tp[t]);
 #else                
+                int ret;
+                pthread_t th = (pthread_t)0;
+                pthread_attr_init(&attr[t]);
+                ret = pthread_attr_setstack(&attr[t], stacks + t * STACK_SIZE, STACK_SIZE);
+                if (ret != 0)
+                    log_msg("setstack: %d - ssize = %d\n", ret, STACK_SIZE);
+                if ((ret = pthread_create(&th, &attr[t], mandel_wrapper, tp[t])) != 0)
+                    log_msg("pthread create failed for thread %d, %d\n", t, ret);
                 ret = pthread_detach(th);
                 if (ret != 0)
                     log_msg("pthread detach failed for thread %d, %d\n", t, ret);
@@ -445,7 +445,7 @@ class mandel
         }
     }
 
-
+#ifdef PTHREADS
     inline int produce(point_t &p, mqd_t mq = (mqd_t) -1)
     {
         return mq_send(mq, (char *) &p, sizeof(point_t), 0);
@@ -529,11 +529,14 @@ class mandel
                 break;
             tcount++;
             canvas_setpx(canvas, point.x, point.y, 
-                         mandel_calc_point(std::complex<myDOUBLE>(point.x * stepx + transx, point.y *stepy + transy)));
+                         mandel_calc_point(std::complex<myDOUBLE>(point.x * stepx + transx, point.y * stepy + transy)));
+            sched_yield();
         }
         log_msg("%s: thread %d delivered %d results\n", __FUNCTION__, p->tno, tcount);
         VSem(p->sem);
-        mq_close(mq);
+
+        if (do_mq == 1)
+            mq_close(mq);
         return 0;
     }
 
@@ -580,6 +583,8 @@ class mandel
                 log_msg("setstack: %d - ssize = %d\n", ret, STACK_SIZE);
             if ((ret = pthread_create(&th, &attr[t], mandel_qwrapper, tpq[t])) != 0)
                 log_msg("pthread create failed for thread %d, %d\n", t, ret);
+            if ((ret = pthread_detach(th)) != 0)
+                log_msg("pthread_detach() failed for thread %d, %d\n", t, ret);
         }
         // wait for all threads to be launched
         for (auto t = thread_no; t != 0; t--)
@@ -611,9 +616,10 @@ class mandel
             delete tpq[t];
         log_msg("%s: done.\n", __FUNCTION__);
 
-        mq_close(mq);
+        if (do_mq == 1)
+            mq_close(mq);
     }
-
+#endif /* PTHREADS */
 public:
     mandel(canvas_t c, char *st, myDOUBLE xl, myDOUBLE yl, myDOUBLE xh, myDOUBLE yh, int xr, int yr, myDOUBLE xrat = 1.0)
         : canvas(c), stacks(st), xres(xr), yres(yr), xratio(xrat), stop(0)
