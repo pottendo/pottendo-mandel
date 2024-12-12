@@ -592,7 +592,7 @@ class mandel
         log_msg("%s: feeding calc...\n", __FUNCTION__);
         if (clock_gettime(CLOCK_REALTIME, &tstart) < 0)
             perror("clock_gettime()");       
-        for (int x = 0; x < IMG_W; x++) {
+        for (int x = 0; x < IMG_W / PIXELW; x++) {
             for (auto y = 0; y < IMG_H; y++) {
                 point_t p{x, y};
                 ret = ((do_mq == 1) ? produce(p, mq) : pcproduce(p));
