@@ -18,7 +18,7 @@ set(COPTS "-I${SYSROOT}/include")
 set(ARCHSRC "mandel-luckfox.cpp")
 set(TSLIBS "ts")
 else()
-set(ARCHSRC "mandel-luckfox.cpp")
+#set(ARCHSRC "mandel-luckfox.cpp")
 endif()
 message(STATUS "target = " ${TARGETX})
 
@@ -29,7 +29,7 @@ find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 set(SRC_FILES mandel.cpp ${ARCHSRC})
 
-add_compile_options(-g -Wall -O3 ${SYSROOTO} ${LINKOPTS} -DPTHREADS ${LUCKFOX})
+add_compile_options(-g -Wall ${SYSROOTO} ${LINKOPTS} -DPTHREADS ${LUCKFOX})
 add_link_options(${LINKOPTS})
 
 add_executable(${PROJECT_NAME} ${SRC_FILES})

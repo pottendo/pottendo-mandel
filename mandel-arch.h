@@ -33,7 +33,7 @@ void log_msg(const char *s, ...);
 #include <time.h>
 #include <pthread.h>
 #define MANDEL_MQ
-#define NO_THREADS 16 // max 16 for Orangecart!
+#define NO_THREADS 1 // max 16 for Orangecart!
 #ifdef PTHREAD_STACK_MIN
 #define STACK_SIZE PTHREAD_STACK_MIN
 #else
@@ -102,7 +102,7 @@ void amiga_zoom_ui(mandel<MTYPE> *m);
 #endif /* __cplusplus */
 #else  /* __amiga__ */
 
-#ifdef __linux__ //-------------------------------------------------------------------
+#ifdef __linuxx__ //-------------------------------------------------------------------
 
 #ifdef LUCKFOX
 #define VIDEO_CAPTURE
@@ -184,11 +184,12 @@ extern char *c64_stack;
 
 #else // non-specific architectures-----------------------------------------
 #define IMG_W 120
-#define IMG_H 80
+#define IMG_H 48
 #define SCRDEPTH 2
-#define CSIZE ((IMG_W/8) * IMG_H)
 #define PAL_SIZE (1L << SCRDEPTH)
 #define PIXELW 2 // 2
+#define CSIZE ((IMG_W/8) * IMG_H * PIXELW)
+#define CANVAS_TYPE char
 
 #define canvas_setpx canvas_setpx_
 #define setup_screen(...) NULL

@@ -179,7 +179,7 @@ class mandel
         uint32_t cidx = (y / 8) * lineb + (y % 8) + (x / (8 / PIXELW)) * colb;
         if (cidx >= (uint32_t)CSIZE)
         {
-            // log_msg("Exceeding canvas!! %d, %d/%d\n", cidx, x, y);
+            log_msg("Exceeding canvas!! %d, %d/%d\n", cidx, x, y);
             // delay (100 * 1000);
             return;
         }
