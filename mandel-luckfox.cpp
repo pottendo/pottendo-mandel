@@ -235,6 +235,12 @@ inline void timespec_diff(struct timespec *a, struct timespec *b, struct timespe
 
 void luckfox_play(mandel<MTYPE> *mandel)
 {
+    if (!blend)
+    {
+        imshow("Mandelbrot", cv::Mat(img_h, img_w, CVCOL, mandel->get_canvas()));
+        cv::waitKey(0);
+        return;
+    }
 #ifdef VIDEO_CAPTURE
 #ifdef TOUCH
     struct ts_sample samp;

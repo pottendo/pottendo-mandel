@@ -24,7 +24,7 @@ void log_msg(const char *s, ...)
 // globals
 int img_w = 800, img_h=480;   // used by luckfox
 int iter = MAX_ITER_INIT;     // used by Amiga
-int video_device, blend, do_mq = 1;      // used by opencv
+int video_device, blend, do_mq = 0;      // used by opencv
 MTYPE xrat = 1.0;
 
 static CANVAS_TYPE *cv;

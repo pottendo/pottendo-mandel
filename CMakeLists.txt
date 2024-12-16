@@ -18,7 +18,7 @@ set(COPTS "-I${SYSROOT}/include")
 set(ARCHSRC "mandel-luckfox.cpp")
 set(TSLIBS "ts")
 else()
-#set(ARCHSRC "mandel-luckfox.cpp")
+set(ARCHSRC "mandel-luckfox.cpp")
 endif()
 message(STATUS "target = " ${TARGETX})
 
