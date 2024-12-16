@@ -10,19 +10,21 @@ pthread_mutex_t canvas_sem;
 pthread_mutex_t logmutex;
 void log_msg(const char *s, ...)
 {
-    va_list args;
-    va_start(args, s);
     pthread_mutex_lock(&logmutex);
-    vprintf(s, args);
+    {
+        va_list args;
+        va_start(args, s);
+        vprintf(s, args);
+        va_end(args);
+    }
     pthread_mutex_unlock(&logmutex);
-    va_end(args);
 }
 #endif  /* PTHREADS */
 
 // globals
 int img_w = 800, img_h=480;   // used by luckfox
 int iter = MAX_ITER_INIT;     // used by Amiga
-int video_device, blend, do_mq = 0;      // used by opencv
+int video_device, blend, do_mq = 1;      // used by opencv
 MTYPE xrat = 1.0;
 
 static CANVAS_TYPE *cv;
@@ -89,7 +91,7 @@ int main(int argc, char *argv[])
 #else
 int main(void)
 {
-    usleep(1000*5); // wait for boot banner
+    usleep(1000*50); // wait for boot banner
 #endif /* ZEPHYR */    
 #ifdef PTHREADS    
     pthread_mutex_init(&logmutex, NULL);
@@ -150,15 +152,15 @@ std::vector<rec_t> recs = {
         hook2();
     }
 #ifndef __ZEPHYR__
-    delete cv;
-    delete stacks;
+    delete[] cv;
+    delete[] stacks;
 #else
     log_msg("system halted");
     while (1)
     {   
-        log_msg(".");
-        fflush(stdout);
-        sleep(5);
+//        log_msg(".");
+//        fflush(stdout);
+//        sleep(5);
     }
 #endif
     return 0;

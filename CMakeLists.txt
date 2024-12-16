@@ -29,7 +29,7 @@ find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 set(SRC_FILES mandel.cpp ${ARCHSRC})
 
-add_compile_options(-g -Wall ${SYSROOTO} ${LINKOPTS} -DPTHREADS ${LUCKFOX})
+add_compile_options(-g -Wall -O3 ${SYSROOTO} ${LINKOPTS} ${LUCKFOX} -DPTHREADS)
 add_link_options(${LINKOPTS})
 
 add_executable(${PROJECT_NAME} ${SRC_FILES})

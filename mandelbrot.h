@@ -343,6 +343,16 @@ class mandel
 #else        
         log_msg("starting thread %d...\n", p->tno);
 #endif
+        char *st; 
+        size_t sts;
+        volatile char c;
+        if (pthread_attr_getstack(&attr[p->tno], (void **)&st, &sts) != 0)
+            log_msg("%s:' pthread_attr_getstackaddr() failed %d\n", __FUNCTION__, errno);
+        for (size_t i = 0; i < sts; i++)
+        {
+            c = st[i];
+        }
+        log_msg("%s: thread %d's stack is at %p with size %d, %d\n", __FUNCTION__, p->tno, st, sts, c);
 #endif
         sched_yield();
         mandel_helper(p->xl, p->yl, p->xh, p->yh, p->incx, p->incy, p->xoffset, p->yoffset, p->width, p->height);
@@ -390,9 +400,11 @@ class mandel
                 int ret;
                 pthread_t th = (pthread_t)0;
                 pthread_attr_init(&attr[t]);
+#if 1                
                 ret = pthread_attr_setstack(&attr[t], stacks + t * STACK_SIZE, STACK_SIZE);
                 if (ret != 0)
                     log_msg("setstack: %d - ssize = %d\n", ret, STACK_SIZE);
+#endif                    
                 if ((ret = pthread_create(&th, &attr[t], mandel_wrapper, tp[t])) != 0)
                     log_msg("pthread create failed for thread %d, %d\n", t, ret);
                 ret = pthread_detach(th);
@@ -504,6 +516,17 @@ class mandel
         log_msg("starting thread %d with priority %d\n", p->tno, sp.sched_priority);
 #endif
 
+        char *st; 
+        size_t sts;
+        volatile char c;
+        if (pthread_attr_getstack(&attr[p->tno], (void **)&st, &sts) != 0)
+            log_msg("%s:' pthread_attr_getstackaddr() failed %d\n", __FUNCTION__, errno);
+        for (size_t i = 0; i < sts; i++)
+        {
+            c = st[i];
+        }
+        log_msg("%s: thread %d's stack is at %p with size %d, %d\n", __FUNCTION__, p->tno, st, sts, c);
+
         if (do_mq == 1)
         {
             mq = mq_open(MQ_NAME, O_CREAT | O_RDONLY, 0644, &mqattr);
@@ -530,7 +553,7 @@ class mandel
             tcount++;
             canvas_setpx(canvas, point.x, point.y, 
                          mandel_calc_point(std::complex<myDOUBLE>(point.x * stepx + transx, point.y * stepy + transy)));
-            sched_yield();
+            //sched_yield();
         }
         log_msg("%s: thread %d delivered %d results\n", __FUNCTION__, p->tno, tcount);
         VSem(p->sem);
@@ -578,9 +601,11 @@ class mandel
         {
             tpq[t] = new tqparam_t(t, master_sem, this);
             pthread_attr_init(&attr[t]);
+#if 1            
             ret = pthread_attr_setstack(&attr[t], stacks + t * STACK_SIZE, STACK_SIZE);
             if (ret != 0)
                 log_msg("setstack: %d - ssize = %d\n", ret, STACK_SIZE);
+#endif                
             if ((ret = pthread_create(&th, &attr[t], mandel_qwrapper, tpq[t])) != 0)
                 log_msg("pthread create failed for thread %d, %d\n", t, ret);
             if ((ret = pthread_detach(th)) != 0)
@@ -613,7 +638,10 @@ class mandel
         for (auto t = thread_no; t != 0; t--)
             PSem(master_sem);
         for (auto t = 0; t < thread_no; t++)
+        {
+            pthread_attr_destroy(&attr[t]);
             delete tpq[t];
+        }
         log_msg("%s: done.\n", __FUNCTION__);
 
         if (do_mq == 1)
