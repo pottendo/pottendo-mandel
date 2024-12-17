@@ -24,7 +24,7 @@ void log_msg(const char *s, ...)
 // globals
 int img_w = 800, img_h=480;   // used by luckfox
 int iter = MAX_ITER_INIT;     // used by Amiga
-int video_device, blend, do_mq = 0;      // used by opencv
+int video_device, blend, do_mq = 2;      // used by opencv
 MTYPE xrat = 1.0;
 
 static CANVAS_TYPE *cv;
@@ -37,6 +37,13 @@ typedef struct
     point_t lu;
     point_t rd;
 } rec_t;
+
+typedef struct {
+    MTYPE xl;
+    MTYPE yl;
+    MTYPE xh;
+    MTYPE yh;
+} frec_t;
 
 #ifndef __ZEPHYR__
 int main(int argc, char *argv[])
@@ -111,7 +118,7 @@ int main(void)
     if (!cv) cv = alloc_canvas;
     log_msg("%s: stack_size per thread = %d, no threads=%d, iter = %d, palette = %ld, stacks = %p, cv = %p, CSIZE = %d\n", 
         __FUNCTION__, STACK_SIZE, NO_THREADS, iter, PAL_SIZE, stacks, cv, CSIZE);
-#if 0
+#if 1
 std::vector<rec_t> recs = { 
         {{00, 00},{80,100}}, 
         {{80, 100},{159,199}}, 
@@ -124,15 +131,29 @@ std::vector<rec_t> recs = {
         {{40,50}, {80, 100}},
         {{120,75}, {159, 125}},
     };
+
+std::vector<frec_t> frecs = {
+    {-1.500000, -1.000000, 0.500000, 1.000000},
+    {-1.500000, -1.000000, -0.500000, 0.000000},
+    {-1.000000, -0.500000, -0.506250, -0.005000},
+    {-1.000000, -0.376250, -0.876563, -0.252500},
+    {-0.938281, -0.308187, -0.907422, -0.277250},
+    {-0.926709, -0.296586, -0.918994, -0.288852},
+    {-0.923816, -0.292332, -0.921887, -0.290398},
+    {-0.923093, -0.291607, -0.922610, -0.291124},
+    {-0.922912, -0.291426, -0.922791, -0.291305},
+    {-0.922882, -0.291395, -0.922852, -0.291365},
+    {-0.922859, -0.291384, -0.922852, -0.291377}};
 #else
 std::vector<rec_t> recs = {
 //    {{00, IMG_H / 4}, {IMG_W / 2, IMG_H / 4 * 3}},
 //    {{00, IMG_H / 4}, {IMG_W / 2, IMG_H / 4 * 3}},
 //    {{IMG_W / 4, IMG_H / 4}, {IMG_W / 4 + 200, IMG_H / 4 * 3}},
 };
+
 #endif
 
-    for (int i = 0; i < 1; i++)
+    for (int i = 0; i < 5; i++)
     {
         hook1();
         mandel<MTYPE> *m = new mandel<MTYPE>{cv, stacks, 

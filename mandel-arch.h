@@ -4,7 +4,7 @@
 #define MTYPE double // long long int  // double
 //#define INTMATH              // goes along with int above, on Intels or other fast FPUs, double/float can be faster
 #define MAX_ITER_INIT 128
-//#define C64   // build for C64 GFX output
+#define C64   // build for C64 GFX output
 
 // some global internals, no need to change normally
 #ifdef INTMATH
@@ -33,7 +33,7 @@ void log_msg(const char *s, ...);
 #include <time.h>
 #include <pthread.h>
 #define MANDEL_MQ
-#define NO_THREADS 4 // max 16 for Orangecart!
+#define NO_THREADS 16 // max 16 for Orangecart!
 #ifdef PTHREAD_STACK_MIN
 #define STACK_SIZE PTHREAD_STACK_MIN
 #else
@@ -155,7 +155,7 @@ void luckfox_play(mandel<MTYPE> *mandel);
 #error "too many threads for Orangencart's STACK_SIZE"
 #endif
 #define CANVAS_TYPE char
-#define IMG_W 160
+#define IMG_W 320
 #define IMG_H 200
 #define SCRDEPTH 2
 #define CSIZE ((IMG_W/8) * IMG_H)
@@ -170,9 +170,12 @@ void luckfox_play(mandel<MTYPE> *mandel);
 #include "c64-lib.h"
 extern c64_t c64;
 extern char *c64_stack;
+extern char *c64_screen_init(void);
 #undef alloc_stack
 #define alloc_stack c64_stack
 #ifdef C64
+#undef setup_screen
+#define setup_screen c64_screen_init
 #undef alloc_canvas
 #define alloc_canvas (char *)&c64.get_mem()[0x4000]
 #define hook1 c64_hook1

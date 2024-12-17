@@ -694,7 +694,7 @@ public:
     }
     ~mandel()
     {
-        //log_msg("%s destructor\n", __FUNCTION__);
+        log_msg("%s destructor\n", __FUNCTION__);
         pthread_mutex_destroy(&canvas_sem);
         sem_destroy(&master_sem);
     };
@@ -745,6 +745,7 @@ public:
 
     void mandel_presetup(myDOUBLE sx, myDOUBLE sy, myDOUBLE tx, myDOUBLE ty)
     {
+        log_msg("zoom to {{%f,%f},{%f,%f}}\n", sx, sy, tx, ty);
         last_xr = (tx - sx);
         last_yr = (ty - sy);
         ssw = last_xr / xres;
