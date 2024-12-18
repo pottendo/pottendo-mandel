@@ -3,8 +3,8 @@
 /* definition section for globals to adapt for some variation */
 #define MTYPE double // long long int  // double
 //#define INTMATH              // goes along with int above, on Intels or other fast FPUs, double/float can be faster
-#define MAX_ITER_INIT 128
-#define C64   // build for C64 GFX output
+#define MAX_ITER_INIT 1024
+//#define C64   // build for C64 GFX output
 
 // some global internals, no need to change normally
 #ifdef INTMATH
@@ -122,7 +122,7 @@ void amiga_zoom_ui(mandel<MTYPE> *m);
 #define IMG_W img_w
 #define IMG_H img_h
 //#define SCRDEPTH 24  // or 6 for 64cols lesser resolution
-#define PAL_SIZE (1024)
+#define PAL_SIZE (512 * 16)
 #define PIXELW 1
 #define CSIZE (img_w * img_h) /// 8
 

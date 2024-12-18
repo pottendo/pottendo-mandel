@@ -256,7 +256,6 @@ class mandel
             return (col_pal[(nb_iter % (PAL_SIZE - 1)) + 1]);
         else
             return 0;
-
     }
 
     int mandel_calc_point(myDOUBLE x, myDOUBLE y)
@@ -648,16 +647,44 @@ class mandel
             mq_close(mq);
     }
 #endif /* PTHREADS */
+
+
+void action(myDOUBLE xl, myDOUBLE yl, myDOUBLE xh, myDOUBLE yh)
+{
+#if 0	
+    log_msg("hit enter to start...\n");
+    char c1;
+    read(0, &c1, 1);
+#endif
+#ifdef PTHREADS
+        if (do_mq)
+        {
+            // Initialize semaphores and mutex
+            sem_init(&pcempty, 0, PCBUFFER_SIZE); // Initially, all slots are empty
+            sem_init(&pcfull, 0, 0);              // Initially, no slots are full
+            pcout = pcin = 0;
+            pthread_mutex_init(&pcmutex, NULL);
+            mandel_mq(NO_THREADS, xl, yl, xh, yh);
+        }
+        else
+#endif
+        {
+            mandel_setup(sqrt(NO_THREADS), xl, yl, xh, yh); // initialize some stuff, but don't calculate
+            go();
+        }
+        dump_result();
+}
+
 public:
     mandel(canvas_t c, char *st, myDOUBLE xl, myDOUBLE yl, myDOUBLE xh, myDOUBLE yh, int xr, int yr, myDOUBLE xrat = 1.0)
         : canvas(c), stacks(st), xres(xr), yres(yr), xratio(xrat), stop(0)
     {
-#ifdef LUCKFOX
+#if defined (__linux__) || defined(LUCKFOX)
 	luckfox_palette(col_pal);
 	int c1 = 0;
 	for (int i = 0; i < xr - 2; i += 2, c1++)
 	    luckfox_rect(c, i, 0, i+1, yr - 1 , col_pal[c1]);
-    
+    zoom_ui(this);
 #else	
         for (int i = 0; i < PAL_SIZE; i++)
             col_pal[i] = i;
@@ -670,27 +697,8 @@ public:
 
         pthread_mutex_init(&canvas_sem, nullptr);
         sem_init(&master_sem, 0, 0);
-#if 0	
-        log_msg("hit enter to start...\n");
-        char c1;
-        read(0, &c1, 1);
-#endif
-#ifdef PTHREADS
-        // Initialize semaphores and mutex
-        sem_init(&pcempty, 0, PCBUFFER_SIZE); // Initially, all slots are empty
-        sem_init(&pcfull, 0, 0);           // Initially, no slots are full
-        pcout = pcin = 0;
-        pthread_mutex_init(&pcmutex, NULL);
-        if (do_mq) {
-            mandel_mq(NO_THREADS, xl, yl, xh, yh);
-        }
-        else
-#endif        
-        {
-            mandel_setup(sqrt(NO_THREADS), xl, yl, xh, yh); // initialize some stuff, but don't calculate
-            go();
-        }
-        dump_result();
+        action(xl, yl, xh, yh);
+
     }
     ~mandel()
     {
@@ -729,18 +737,30 @@ public:
             mark_x2 = 0;
         if (mark_y2 < 0)
             mark_y2 = 0;
-        //log_msg("rect coord: [%d,%d]x[%d,%d] - ssw=%d,ssh=%d,trx=%d,try=%d\n", mark_x1, mark_y1, mark_x2, mark_y2, ssw, ssh, transx, transy);
+        // log_msg("rect coord: [%d,%d]x[%d,%d] - ssw=%d,ssh=%d,trx=%d,try=%d\n", mark_x1, mark_y1, mark_x2, mark_y2, ssw, ssh, transx, transy);
         log_msg("rect coord: [%d,%d]x[%d,%d]\n", mark_x1, mark_y1, mark_x2, mark_y2);
-        mandel_setup(sqrt(NO_THREADS),
-                     static_cast<myDOUBLE>(mark_x1 * ssw + transx),
-                     static_cast<myDOUBLE>(mark_y1 * ssh + transy),
-                     static_cast<myDOUBLE>(mark_x2 * ssw + transx),
-                     static_cast<myDOUBLE>(mark_y2 * ssh + transy));
-        go();
-        dump_result();
+        /*
+                mandel_setup(sqrt(NO_THREADS),
+                             static_cast<myDOUBLE>(mark_x1 * ssw + transx),
+                             static_cast<myDOUBLE>(mark_y1 * ssh + transy),
+                             static_cast<myDOUBLE>(mark_x2 * ssw + transx),
+                             static_cast<myDOUBLE>(mark_y2 * ssh + transy));
+                go();
+                dump_result();
+        */
+        action(static_cast<myDOUBLE>(mark_x1 * ssw + transx),
+               static_cast<myDOUBLE>(mark_y1 * ssh + transy),
+               static_cast<myDOUBLE>(mark_x2 * ssw + transx),
+               static_cast<myDOUBLE>(mark_y2 * ssh + transy));
+
         mark_x1 = -1;
         mark_x2 = mark_x1;
         mark_y2 = mark_y1;
+    }
+
+    void zoom(myDOUBLE xl, myDOUBLE yl, myDOUBLE xh, myDOUBLE yh)
+    {
+        action(xl, yl, xh, yh);
     }
 
     void mandel_presetup(myDOUBLE sx, myDOUBLE sy, myDOUBLE tx, myDOUBLE ty)

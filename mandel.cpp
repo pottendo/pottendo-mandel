@@ -24,7 +24,7 @@ void log_msg(const char *s, ...)
 // globals
 int img_w = 800, img_h=480;   // used by luckfox
 int iter = MAX_ITER_INIT;     // used by Amiga
-int video_device, blend, do_mq = 2;      // used by opencv
+int video_device, blend, do_mq = 0;      // used by opencv
 MTYPE xrat = 1.0;
 
 static CANVAS_TYPE *cv;
@@ -116,7 +116,7 @@ int main(void)
     stacks = alloc_stack;
     cv = setup_screen();
     if (!cv) cv = alloc_canvas;
-    log_msg("%s: stack_size per thread = %d, no threads=%d, iter = %d, palette = %ld, stacks = %p, cv = %p, CSIZE = %d\n", 
+    log_msg("%s: stack_size per thread = %d, no threads=%d, iter = %d, palsize = %ld, stacks = %p, cv = %p, CSIZE = %d\n", 
         __FUNCTION__, STACK_SIZE, NO_THREADS, iter, PAL_SIZE, stacks, cv, CSIZE);
 #if 1
 std::vector<rec_t> recs = { 
@@ -133,7 +133,7 @@ std::vector<rec_t> recs = {
     };
 
 std::vector<frec_t> frecs = {
-    {-1.500000, -1.000000, 0.500000, 1.000000},
+    //{-1.500000, -1.000000, 0.500000, 1.000000},
     {-1.500000, -1.000000, -0.500000, 0.000000},
     {-1.000000, -0.500000, -0.506250, -0.005000},
     {-1.000000, -0.376250, -0.876563, -0.252500},
@@ -164,10 +164,10 @@ std::vector<rec_t> recs = {
         
         for (size_t i = 0; i < recs.size(); i++)
         {
-            auto it = &recs[i];
-            log_msg("%d/%d, zooming into [%d,%d]x[%d,%d]...stacks=%p\n", (int)i, (int)recs.size(), it->lu.x, it->lu.y, it->rd.x, it->rd.y, m->get_stacks());
-            m->select_start(it->lu);
-            m->select_end(it->rd);
+            auto it = &frecs[i];
+            log_msg("%d/%d, zooming into [%f,%f]x[%f,%f]...stacks=%p\n", (int)i, (int)recs.size(), it->xl, it->yl, it->xh, it->yh, m->get_stacks());
+            m->zoom(it->xl, it->yl, it->xh, it->yh);
+            zoom_ui(m);
         }
         delete m;
         hook2();

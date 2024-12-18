@@ -95,7 +95,7 @@ void luckfox_palette(int *col_pal)
     }
     for (i = 1; i < 4; i++)
     {
-        memcpy(col_pal + i * 512, col_pal, sizeof(int) * 512);
+        //memcpy(col_pal + i * 512, col_pal, sizeof(int) * 512);
     }
 #endif
 }
@@ -111,7 +111,6 @@ void luckfox_setpx(CANVAS_TYPE *canvas, int x, int y, int c)
 {
     CANVAS_TYPE *cv;
     cv = canvas ? canvas : tft_canvas;
-
     if (!cv || (x < 0) || (y >= IMG_H)) return;
 //    pthread_mutex_lock(&logmutex);
     cv[x + y * IMG_W] = c;
@@ -237,8 +236,10 @@ void luckfox_play(mandel<MTYPE> *mandel)
 {
     if (!blend)
     {
-        imshow("Mandelbrot", cv::Mat(img_h, img_w, CVCOL, mandel->get_canvas()));
-        cv::waitKey(0);
+        cv::Mat i = cv::Mat(img_h, img_w, CV_8UC4, mandel->get_canvas());
+        cv::cvtColor(i, i, cv::COLOR_BGR2RGB);
+        imshow("Mandelbrot", i);
+        cv::waitKey(1000 * 2);
         return;
     }
 #ifdef VIDEO_CAPTURE
