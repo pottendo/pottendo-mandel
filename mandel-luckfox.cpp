@@ -260,7 +260,7 @@ void *vstream(void *arg)
                 memset(&samp, 0, sizeof(struct ts_sample));
             }
 #endif
-            i = cv::Mat(img_h, img_w, CV_8UC4, m->get_canvas());
+            i = cv::Mat(img_h, img_w, CVCOL, m->get_canvas());
             cv::cvtColor(i, i, cv::COLOR_BGR2RGB);
             cv::imshow("fb", i);
 #ifndef LUCKFOX
@@ -281,10 +281,14 @@ void *vstream(void *arg)
         clock_gettime(CLOCK_REALTIME, &t1);
 #endif
         pthread_mutex_lock(&logmutex);
-        mmask = cv::Mat(img_h, img_w, CV_8UC4, m->get_canvas());
+        mmask = cv::Mat(img_h, img_w, CVCOL, m->get_canvas());
         pthread_mutex_unlock(&logmutex);
         cv::resize(mmask, mmask, cv::Size(bgr.cols, bgr.rows));
+#ifndef LUCKFOX        
         cv::cvtColor(mmask, mmask, cv::COLOR_BGR2RGB);
+#else        
+        mmask = rgb565ToCV8UC3(mmask);
+#endif        
         cv::addWeighted(bgr, 0.5, mmask, 0.5, 0.5, bgr);
         //    cv::bitwise_and(bgr, mmask, bgr);
 
