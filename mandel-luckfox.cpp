@@ -241,6 +241,19 @@ void *vstream(void *arg)
 {
     mandel<MTYPE> *m = static_cast<mandel<MTYPE> *>(arg);
     is_running = true;
+
+    if (!blend)
+    {
+        cv::Mat i;
+        while (1)
+        {
+            i = cv::Mat(img_h, img_w, CV_8UC4, m->get_canvas());
+            cv::cvtColor(i, i, cv::COLOR_BGR2RGB);
+            cv::imshow("Mandelbrot", i);
+            cv::waitKey(1);
+        }
+    }
+
     while (1)
     {
         cap >> bgr;
@@ -309,42 +322,33 @@ void *vstream(void *arg)
 
 void luckfox_play(mandel<MTYPE> *mandel)
 {
-    if (!blend)
-    {
-        cv::Mat i = cv::Mat(img_h, img_w, CV_8UC4, mandel->get_canvas());
-        cv::cvtColor(i, i, cv::COLOR_BGR2RGB);
-        imshow("Mandelbrot", i);
-        cv::waitKey(1000 * 2);
-        return;
-    }
     pthread_t vt;
     if (!is_running)
     {
 #ifdef VIDEO_CAPTURE
+        if (blend)
+        {
 #ifdef TOUCH
-        struct ts_sample samp;
-        memset(&samp, 0, sizeof(struct ts_sample));
+            struct ts_sample samp;
+            memset(&samp, 0, sizeof(struct ts_sample));
 #endif
-        // cap.set(cv::CAP_PROP_FRAME_WIDTH, img_w);
-        // cap.set(cv::CAP_PROP_FRAME_HEIGHT, img_h);
-        cap.open(video_device);
-        cap >> bgr;
-        log_msg("Mandelbrot %dx%d, scaling to %dx%d to match video, depth = %d, channels = %d\n", img_w, img_h, bgr.cols, bgr.rows, CV_MAT_DEPTH(bgr.type()), bgr.channels());
-        mmask = cv::Mat(img_h, img_w, CVCOL, mandel->get_canvas());
-        cv::resize(mmask, mmask, cv::Size(bgr.cols, bgr.rows));
-        cv::cvtColor(bgr, bgr, cv::COLOR_RGB2BGR);
-        out = mmask;
+            // cap.set(cv::CAP_PROP_FRAME_WIDTH, img_w);
+            // cap.set(cv::CAP_PROP_FRAME_HEIGHT, img_h);
+            cap.open(video_device);
+            cap >> bgr;
+            log_msg("Mandelbrot %dx%d, scaling to %dx%d to match video, depth = %d, channels = %d\n", img_w, img_h, bgr.cols, bgr.rows, CV_MAT_DEPTH(bgr.type()), bgr.channels());
+            mmask = cv::Mat(img_h, img_w, CVCOL, mandel->get_canvas());
+            cv::resize(mmask, mmask, cv::Size(bgr.cols, bgr.rows));
+            cv::cvtColor(bgr, bgr, cv::COLOR_RGB2BGR);
+            out = mmask;
 #ifdef LUCKFOX
-        mmask = rgb565ToCV8UC3(mmask);
+            mmask = rgb565ToCV8UC3(mmask);
 #else
-        cv::cvtColor(mmask, mmask, cv::COLOR_RGB2BGR);
-        cv::cvtColor(out, out, cv::COLOR_RGB2BGR);
+            cv::cvtColor(mmask, mmask, cv::COLOR_RGB2BGR);
+            cv::cvtColor(out, out, cv::COLOR_RGB2BGR);
 #endif
-
-        // std::cout << "bgr = " << bgr.cols << "x" << bgr.rows << ", depth = " << CV_MAT_DEPTH(bgr.type()) << ", channels = " << (bgr.channels()) << '\n';
-        // std::cout << "mmask = " << mmask.cols << "x" << mmask.rows << ", depth = " << CV_MAT_DEPTH(mmask.type()) << ", channels = " << (mmask.channels()) << '\n';
+        }
         setup_ts();
-        // while (1)
 
         if (pthread_create(&vt, NULL, vstream, (void *)mandel) < 0)
             log_msg("%s: pthread_create failed for opencv blending thread, %d\n", __FUNCTION__, errno);
