@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
     if (argc > 1)
     {
         char opt;
-        while ((opt = getopt(argc, argv, "l:bq:v:r:h")) != (char)-1)
+        while ((opt = getopt(argc, argv, "i:l:bq:v:r:h")) != (char)-1)
         {
             switch (opt)
             {
@@ -89,6 +89,10 @@ int main(int argc, char *argv[])
             case 'l':
                 log_level = strtol(optarg, NULL, 10);
                 break;
+            case 'i':
+                iter = strtol(optarg, NULL, 10);
+                if (iter < 16) { iter = 16; break; }
+                break;
             case 'r':
                 if (optarg)
                 {
@@ -104,7 +108,7 @@ int main(int argc, char *argv[])
             case 'h':
             case '?':
                 // Print help message and exit
-                printf("Usage: %s [-b] [-q <0|1|2> select thread policy] [-v <video device nr>] [-r resolution in form <XxY> (e.g.: -r 800x480)]\n", argv[0]);
+                printf("Usage: %s [-b] [-q <0|1|2> select thread policy] [-v <video device nr>] [-r resolution in form <XxY> (e.g.: -r 800x480) -l <loglevel> -i <iter depth>]\n", argv[0]);
                 return 0;
             default:
                 fprintf(stderr, "Unexpected error in getopt: %c/%d\n", (isprint(opt)?opt:'.'), opt);
