@@ -8,6 +8,7 @@
 #ifdef PTHREADS
 pthread_mutex_t canvas_sem;
 pthread_mutex_t logmutex;
+int log_level = 0;
 void log_msg(const char *s, ...)
 {
     pthread_mutex_lock(&logmutex);
@@ -18,6 +19,19 @@ void log_msg(const char *s, ...)
         va_end(args);
     }
     pthread_mutex_unlock(&logmutex);
+}
+
+void log_msg(int lv, const char *s, ...)
+{
+    if (lv <= log_level)
+    {
+        char buf[256];
+        va_list args;
+        va_start(args, s);
+        vsnprintf(buf, 255, s, args);
+        log_msg(buf);
+        va_end(args);
+    }
 }
 #endif  /* PTHREADS */
 
@@ -51,7 +65,7 @@ int main(int argc, char *argv[])
     if (argc > 1)
     {
         char opt;
-        while ((opt = getopt(argc, argv, "bq:v:r:h")) != (char)-1)
+        while ((opt = getopt(argc, argv, "l:bq:v:r:h")) != (char)-1)
         {
             switch (opt)
             {
@@ -63,7 +77,7 @@ int main(int argc, char *argv[])
                     do_mq = strtol(optarg, NULL, 10);
 #ifndef PTHREADS
                 log_msg("not useful without threads - ignoring -q \n");
-#endif                    
+#endif
                 break;
             case 'v':
                 if (optarg)
@@ -71,6 +85,9 @@ int main(int argc, char *argv[])
                     video_device = strtol(optarg, NULL, 10);
                 }
                 log_msg("video-device set to %d\n", video_device);
+                break;
+            case 'l':
+                log_level = strtol(optarg, NULL, 10);
                 break;
             case 'r':
                 if (optarg)
@@ -165,7 +182,6 @@ std::vector<rec_t> recs = {
         for (size_t i = 0; i < recs.size(); i++)
         {
             auto it = &frecs[i];
-            log_msg("%d/%d, zooming into [%f,%f]x[%f,%f]...stacks=%p\n", (int)i, (int)recs.size(), it->xl, it->yl, it->xh, it->yh, m->get_stacks());
             m->zoom(it->xl, it->yl, it->xh, it->yh);
             zoom_ui(m);
         }

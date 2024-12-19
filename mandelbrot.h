@@ -338,9 +338,9 @@ class mandel
         if ((ret = pthread_setschedparam(pthread_self(), SCHED_RR, &sp)) != 0)
             log_msg("pthread setschedparam (pol=%d) failed for thread %d, %d - need sudo!\n", SCHED_RR, p->tno, ret);
         pthread_getschedparam(pthread_self(), &pol, &sp);
-        log_msg("starting thread %d with priority %d\n", p->tno, sp.sched_priority);
+        log_msg(2, "starting thread %d with priority %d\n", p->tno, sp.sched_priority);
 #else        
-        log_msg("starting thread %d...\n", p->tno);
+        log_msg(2, "starting thread %d...\n", p->tno);
 #endif
         char *st; 
         size_t sts;
@@ -351,11 +351,11 @@ class mandel
         {
             c = st[i];
         }
-        log_msg("%s: thread %d's stack is at %p with size %d, %d\n", __FUNCTION__, p->tno, st, sts, c);
+        log_msg(1, "%s: thread %d's stack is at %p with size %d, %d\n", __FUNCTION__, p->tno, st, sts, c);
 #endif
         sched_yield();
         mandel_helper(p->xl, p->yl, p->xh, p->yh, p->incx, p->incy, p->xoffset, p->yoffset, p->width, p->height);
-        log_msg("finished thread %d\n", p->tno);
+        log_msg(2, "finished thread %d\n", p->tno);
         VSem(p->sem); // report we've done our job
         return 0;
     }
@@ -399,11 +399,9 @@ class mandel
                 int ret;
                 pthread_t th = (pthread_t)0;
                 pthread_attr_init(&attr[t]);
-#if 1                
                 ret = pthread_attr_setstack(&attr[t], stacks + t * STACK_SIZE, STACK_SIZE);
                 if (ret != 0)
                     log_msg("setstack: %d - ssize = %d\n", ret, STACK_SIZE);
-#endif                    
                 if ((ret = pthread_create(&th, &attr[t], mandel_wrapper, tp[t])) != 0)
                     log_msg("pthread create failed for thread %d, %d\n", t, ret);
                 ret = pthread_detach(th);
@@ -431,7 +429,7 @@ class mandel
         //log_msg("main thread waiting for %i threads...\n", NO_THREADS);
         for (int i = NO_THREADS; i; i--)
         {
-            log_msg("main thread waiting for %i threads...\n", i);
+            log_msg(2, "main thread waiting for %i threads...\n", i);
             PSem(master_sem); // wait until all workers have finished
         }
 
@@ -439,7 +437,7 @@ class mandel
             perror("clock_gettime()");
         //log_msg("end at %ld.%06ld\n", tend.tv_sec % 60, tend.tv_nsec / 1000);
 
-        log_msg("all threads finished.\n");
+        log_msg(2, "all threads finished.\n");
         free_ressources();
         stop = 0;
     }
@@ -512,7 +510,7 @@ class mandel
         if ((ret = pthread_setschedparam(pthread_self(), SCHED_RR, &sp)) != 0)
             log_msg("pthread setschedparam (pol=%d) failed for thread %d, %d - need sudo!\n", SCHED_RR, p->tno, ret);
         pthread_getschedparam(pthread_self(), &pol, &sp);
-        log_msg("starting thread %d with priority %d\n", p->tno, sp.sched_priority);
+        log_msg(2, "starting thread %d with priority %d\n", p->tno, sp.sched_priority);
 #endif
 
         char *st; 
@@ -524,7 +522,7 @@ class mandel
         {
             c = st[i];
         }
-        log_msg("%s: thread %d's stack is at %p with size %d, %d\n", __FUNCTION__, p->tno, st, sts, c);
+        log_msg(2, "%s: thread %d's stack is at %p with size %d, %d\n", __FUNCTION__, p->tno, st, sts, c);
 
         if (do_mq == 1)
         {
@@ -554,7 +552,7 @@ class mandel
                          mandel_calc_point(std::complex<myDOUBLE>(point.x * stepx + transx, point.y * stepy + transy)));
             //sched_yield();
         }
-        log_msg("%s: thread %d delivered %d results\n", __FUNCTION__, p->tno, tcount);
+        log_msg(1, "%s: thread %d delivered %d results\n", __FUNCTION__, p->tno, tcount);
         VSem(p->sem);
 
         if (do_mq == 1)
@@ -593,18 +591,16 @@ class mandel
         if ((ret = pthread_setschedparam(pthread_self(), SCHED_RR, &sp)) != 0)
             log_msg("pthread setschedparam (pol=%d) failed for main thread, %d - need sudo!\n", SCHED_RR, ret);
         pthread_getschedparam(pthread_self(), &pol, &sp);
-        log_msg("main thread with priority %d\n", sp.sched_priority);
+        log_msg(2, "main thread with priority %d\n", sp.sched_priority);
 #endif
 
         for (auto t = 0; t < thread_no; t++)
         {
             tpq[t] = new tqparam_t(t, master_sem, this);
             pthread_attr_init(&attr[t]);
-#if 1            
             ret = pthread_attr_setstack(&attr[t], stacks + t * STACK_SIZE, STACK_SIZE);
             if (ret != 0)
                 log_msg("setstack: %d - ssize = %d\n", ret, STACK_SIZE);
-#endif                
             if ((ret = pthread_create(&th, &attr[t], mandel_qwrapper, tpq[t])) != 0)
                 log_msg("pthread create failed for thread %d, %d\n", t, ret);
             if ((ret = pthread_detach(th)) != 0)
@@ -613,7 +609,7 @@ class mandel
         // wait for all threads to be launched
         for (auto t = thread_no; t != 0; t--)
             PSem(master_sem);
-        log_msg("%s: feeding calc...\n", __FUNCTION__);
+        log_msg(2, "%s: feeding calc...\n", __FUNCTION__);
         if (clock_gettime(CLOCK_REALTIME, &tstart) < 0)
             perror("clock_gettime()");       
         for (int x = 0; x < IMG_W / PIXELW; x++) {
@@ -641,7 +637,7 @@ class mandel
             pthread_attr_destroy(&attr[t]);
             delete tpq[t];
         }
-        log_msg("%s: done.\n", __FUNCTION__);
+        log_msg(2, "%s: done.\n", __FUNCTION__);
 
         if (do_mq == 1)
             mq_close(mq);

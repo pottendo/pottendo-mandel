@@ -232,6 +232,81 @@ inline void timespec_diff(struct timespec *a, struct timespec *b, struct timespe
         }
 }
 
+static cv::VideoCapture cap;
+static cv::Mat bgr;
+static cv::Mat disp, mmask, out, out2;
+static bool is_running = false;
+
+void *vstream(void *arg)
+{
+    mandel<MTYPE> *m = static_cast<mandel<MTYPE> *>(arg);
+    is_running = true;
+    while (1)
+    {
+        cap >> bgr;
+#ifdef LUCKFOX
+        cv::cvtColor(bgr, bgr, cv::COLOR_RGB2BGR);
+#endif
+#ifdef TOUCH
+        ts_read(ts, &samp, 1);
+        if (samp.pressure > 0)
+        {
+            // luckfox_rect(mask, samp.x, samp.y, samp.x + 5, samp.y + 5, 0);
+            luckfox_zoom(mandel, &samp);
+            mmask = cv::Mat(img_h, img_w, CVCOL, mandel->get_canvas());
+            cv::resize(mmask, mmask, cv::Size(bgr.cols, bgr.rows));
+            mmask = rgb565ToCV8UC3(mmask);
+            memset(&samp, 0, sizeof(struct ts_sample));
+        }
+#endif
+#ifdef BENCHMARK
+        struct timespec t1, t2, t3, d1, d2;
+        clock_gettime(CLOCK_REALTIME, &t1);
+#endif
+        mmask = cv::Mat(img_h, img_w, CV_8UC4, m->get_canvas());
+        cv::resize(mmask, mmask, cv::Size(bgr.cols, bgr.rows));
+        cv::cvtColor(mmask, mmask, cv::COLOR_BGR2RGB);
+        cv::addWeighted(bgr, 0.5, mmask, 0.5, 0.5, bgr);
+        //    cv::bitwise_and(bgr, mmask, bgr);
+
+#ifdef BENCHMARK
+        clock_gettime(CLOCK_REALTIME, &t2);
+        timespec_diff(&t2, &t1, &d1);
+        clock_gettime(CLOCK_REALTIME, &t2);
+#ifdef LUCKFOX
+        bgr.forEach<cv::Vec3b>([&mmask, &out](cv::Vec3b &p, const int *pos)
+                               {
+                                const cv::Vec3b empty_pixel{0,0,0};
+                                if (mmask.at<cv::Vec3b>(pos[0], pos[1]) == empty_pixel) {
+                                    out.at<uint16_t>(pos[0], pos[1]) = convertToBGR565(p);
+                                } else {
+                                    out.at<uint16_t>(pos[0], pos[1]) = convertToBGR565(mmask.at<cv::Vec3b>(pos[0], pos[1]) * 0.5 + p * 0.5);
+                                } });
+#else
+        bgr.forEach<cv::Vec3b>([&mmask, &out](cv::Vec3b &p, const int *pos)
+                               {
+                                const cv::Vec3b empty_pixel(0,0,0);
+                                if (mmask.at<cv::Vec3b>(pos[0], pos[1]) == empty_pixel) {
+                                    out.at<cv::Vec3b>(pos[0], pos[1]) = p;
+                                } else {
+                                    out.at<cv::Vec3b>(pos[0], pos[1]) = mmask.at<cv::Vec3b>(pos[0], pos[1]) * 0.5 + p * 0.5;
+                                } });
+#endif
+        clock_gettime(CLOCK_REALTIME, &t3);
+        timespec_diff(&t3, &t2, &d2);
+        log_msg("d1 = %04d.%09d\n", d1.tv_sec, d1.tv_nsec);
+        log_msg("d2 = %04d.%09d\n", d2.tv_sec, d2.tv_nsec);
+#endif
+        if ((img_w != bgr.cols) || (img_h != bgr.rows))
+            cv::resize(bgr, bgr, cv::Size(img_w, img_h));
+        cv::imshow("fb", bgr);
+#ifndef LUCKFOX
+        cv::waitKey(1);
+#endif
+    }
+    return NULL;
+}
+
 void luckfox_play(mandel<MTYPE> *mandel)
 {
     if (!blend)
@@ -242,91 +317,39 @@ void luckfox_play(mandel<MTYPE> *mandel)
         cv::waitKey(1000 * 2);
         return;
     }
+    pthread_t vt;
+    if (!is_running)
+    {
 #ifdef VIDEO_CAPTURE
 #ifdef TOUCH
-    struct ts_sample samp;
-    memset(&samp, 0, sizeof(struct ts_sample));
-#endif    
-    cv::VideoCapture cap;
-    cv::Mat bgr;
-    cv::Mat disp, mmask, out, out2;
-    //cap.set(cv::CAP_PROP_FRAME_WIDTH, img_w);
-    //cap.set(cv::CAP_PROP_FRAME_HEIGHT, img_h);
-    cap.open(video_device);
-    cap >> bgr;
-    log_msg("Mandelbrot %dx%d, scaling to %dx%d to match video, depth = %d, channels = %d\n", img_w, img_h, bgr.cols, bgr.rows, CV_MAT_DEPTH(bgr.type()), bgr.channels());
-    mmask = cv::Mat(img_h, img_w, CVCOL, mandel->get_canvas());
-    cv::resize(mmask, mmask, cv::Size(bgr.cols, bgr.rows));
-    cv::cvtColor(bgr, bgr, cv::COLOR_RGB2BGR);
-    out = mmask;
-#ifdef LUCKFOX    
-    mmask = rgb565ToCV8UC3(mmask);
-#else 
-    cv::cvtColor(mmask, mmask, cv::COLOR_RGB2BGR);
-    cv::cvtColor(out, out, cv::COLOR_RGB2BGR);
-#endif    
-
-    //std::cout << "bgr = " << bgr.cols << "x" << bgr.rows << ", depth = " << CV_MAT_DEPTH(bgr.type()) << ", channels = " << (bgr.channels()) << '\n';
-    //std::cout << "mmask = " << mmask.cols << "x" << mmask.rows << ", depth = " << CV_MAT_DEPTH(mmask.type()) << ", channels = " << (mmask.channels()) << '\n';
-    setup_ts();
-    while (1)
-    {
+        struct ts_sample samp;
+        memset(&samp, 0, sizeof(struct ts_sample));
+#endif
+        // cap.set(cv::CAP_PROP_FRAME_WIDTH, img_w);
+        // cap.set(cv::CAP_PROP_FRAME_HEIGHT, img_h);
+        cap.open(video_device);
         cap >> bgr;
-#ifdef LUCKFOX        
-    	cv::cvtColor(bgr, bgr, cv::COLOR_RGB2BGR);
-#endif
-#ifdef TOUCH	
-        ts_read(ts, &samp, 1);
-        if (samp.pressure > 0)
-        {
-            //luckfox_rect(mask, samp.x, samp.y, samp.x + 5, samp.y + 5, 0);
-            luckfox_zoom(mandel, &samp);
-	        mmask = cv::Mat(img_h, img_w, CVCOL, mandel->get_canvas());
-            cv::resize(mmask, mmask, cv::Size(bgr.cols, bgr.rows));
-            mmask = rgb565ToCV8UC3(mmask);
-            memset(&samp, 0, sizeof(struct ts_sample));
-        }
-#endif
-#ifdef BENCHMARK
-        struct timespec t1, t2, t3, d1, d2;
-        clock_gettime(CLOCK_REALTIME, &t1);
-#endif        
-        if (blend)
-	        cv::addWeighted(bgr, 1.0, mmask, 2.5, 0.0, bgr);
-        //    cv::bitwise_and(bgr, mmask, bgr);
-#ifdef BENCHMARK  
-        clock_gettime(CLOCK_REALTIME, &t2);
-        timespec_diff(&t2, &t1, &d1);
-        clock_gettime(CLOCK_REALTIME, &t2);
+        log_msg("Mandelbrot %dx%d, scaling to %dx%d to match video, depth = %d, channels = %d\n", img_w, img_h, bgr.cols, bgr.rows, CV_MAT_DEPTH(bgr.type()), bgr.channels());
+        mmask = cv::Mat(img_h, img_w, CVCOL, mandel->get_canvas());
+        cv::resize(mmask, mmask, cv::Size(bgr.cols, bgr.rows));
+        cv::cvtColor(bgr, bgr, cv::COLOR_RGB2BGR);
+        out = mmask;
 #ifdef LUCKFOX
-        bgr.forEach<cv::Vec3b>([&mmask, &out](cv::Vec3b &p, const int *pos) {
-                                const cv::Vec3b empty_pixel{0,0,0};
-                                if (mmask.at<cv::Vec3b>(pos[0], pos[1]) == empty_pixel) {
-                                    out.at<uint16_t>(pos[0], pos[1]) = convertToBGR565(p);
-                                } else {
-                                    out.at<uint16_t>(pos[0], pos[1]) = convertToBGR565(mmask.at<cv::Vec3b>(pos[0], pos[1]) * 0.5 + p * 0.5);
-                                }});
+        mmask = rgb565ToCV8UC3(mmask);
 #else
-        bgr.forEach<cv::Vec3b>([&mmask, &out](cv::Vec3b &p, const int *pos) {
-                                const cv::Vec3b empty_pixel(0,0,0);
-                                if (mmask.at<cv::Vec3b>(pos[0], pos[1]) == empty_pixel) {
-                                    out.at<cv::Vec3b>(pos[0], pos[1]) = p;
-                                } else {
-                                    out.at<cv::Vec3b>(pos[0], pos[1]) = mmask.at<cv::Vec3b>(pos[0], pos[1]) * 0.5 + p * 0.5;
-                                }});
-#endif                                
-        clock_gettime(CLOCK_REALTIME, &t3);
-        timespec_diff(&t3, &t2, &d2);
-        log_msg("d1 = %04d.%09d\n", d1.tv_sec, d1.tv_nsec);
-        log_msg("d2 = %04d.%09d\n", d2.tv_sec, d2.tv_nsec);
+        cv::cvtColor(mmask, mmask, cv::COLOR_RGB2BGR);
+        cv::cvtColor(out, out, cv::COLOR_RGB2BGR);
 #endif
-        if ((img_w != bgr.cols) || (img_h != bgr.rows))
-            cv::resize(bgr, bgr, cv::Size(img_w, img_h));  
-        cv::imshow("fb", bgr);
-#ifndef LUCKFOX    
-        cv::waitKey(1);
-#endif        
+
+        // std::cout << "bgr = " << bgr.cols << "x" << bgr.rows << ", depth = " << CV_MAT_DEPTH(bgr.type()) << ", channels = " << (bgr.channels()) << '\n';
+        // std::cout << "mmask = " << mmask.cols << "x" << mmask.rows << ", depth = " << CV_MAT_DEPTH(mmask.type()) << ", channels = " << (mmask.channels()) << '\n';
+        setup_ts();
+        // while (1)
+
+        if (pthread_create(&vt, NULL, vstream, (void *)mandel) < 0)
+            log_msg("%s: pthread_create failed for opencv blending thread, %d\n", __FUNCTION__, errno);
     }
+
 #else
 #ifdef COL16BIT
     cv::Mat img = convertRGB565toCV8UC3(mask, img_w, img_h);
@@ -336,5 +359,7 @@ void luckfox_play(mandel<MTYPE> *mandel)
     cv::imshow("Mandelbrot", img);
 
 #endif
-    cv::waitKey(0);
+    //cv::waitKey(0);
+
+    sleep(1);
 }

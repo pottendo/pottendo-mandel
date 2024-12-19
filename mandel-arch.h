@@ -23,6 +23,7 @@
 #define alloc_canvas new CANVAS_TYPE[CSIZE]()
 
 void log_msg(const char *s, ...);
+void log_msg(int lv, const char *s, ...);
 //#define NO_LOG
 #ifdef NO_LOG
 #define log_msg(...)
