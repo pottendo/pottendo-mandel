@@ -12,6 +12,7 @@
 #include "mandel-arch.h"
 #ifdef TOUCH
 #include <tslib.h>
+struct ts_sample samp;
 #endif
 #include <time.h>
 extern void log_msg(const char *s, ...);
@@ -112,10 +113,10 @@ void luckfox_setpx(CANVAS_TYPE *canvas, int x, int y, int c)
     CANVAS_TYPE *cv;
     cv = canvas ? canvas : tft_canvas;
     if (!cv || (x < 0) || (y >= IMG_H)) return;
-//    pthread_mutex_lock(&logmutex);
+    pthread_mutex_lock(&logmutex);
     cv[x + y * IMG_W] = c;
     //log_msg("%s: (%d,%d) = %d\n", __FUNCTION__, x, y, c);
-//    pthread_mutex_unlock(&logmutex);
+    pthread_mutex_unlock(&logmutex);
 }
 
 uint16_t convertToBGR565(const cv::Vec3b& bgr_pixel) 
@@ -247,10 +248,24 @@ void *vstream(void *arg)
         cv::Mat i;
         while (1)
         {
+#ifdef TOUCH
+            ts_read(ts, &samp, 1);
+            if (samp.pressure > 0)
+            {
+                // luckfox_rect(mask, samp.x, samp.y, samp.x + 5, samp.y + 5, 0);
+                luckfox_zoom(m, &samp);
+                mmask = cv::Mat(img_h, img_w, CVCOL, m->get_canvas());
+                cv::resize(mmask, mmask, cv::Size(bgr.cols, bgr.rows));
+                mmask = rgb565ToCV8UC3(mmask);
+                memset(&samp, 0, sizeof(struct ts_sample));
+            }
+#endif
             i = cv::Mat(img_h, img_w, CV_8UC4, m->get_canvas());
             cv::cvtColor(i, i, cv::COLOR_BGR2RGB);
-            cv::imshow("Mandelbrot", i);
+            cv::imshow("fb", i);
+#ifndef LUCKFOX
             cv::waitKey(1);
+#endif
         }
     }
 
@@ -260,23 +275,14 @@ void *vstream(void *arg)
 #ifdef LUCKFOX
         cv::cvtColor(bgr, bgr, cv::COLOR_RGB2BGR);
 #endif
-#ifdef TOUCH
-        ts_read(ts, &samp, 1);
-        if (samp.pressure > 0)
-        {
-            // luckfox_rect(mask, samp.x, samp.y, samp.x + 5, samp.y + 5, 0);
-            luckfox_zoom(mandel, &samp);
-            mmask = cv::Mat(img_h, img_w, CVCOL, mandel->get_canvas());
-            cv::resize(mmask, mmask, cv::Size(bgr.cols, bgr.rows));
-            mmask = rgb565ToCV8UC3(mmask);
-            memset(&samp, 0, sizeof(struct ts_sample));
-        }
-#endif
+
 #ifdef BENCHMARK
         struct timespec t1, t2, t3, d1, d2;
         clock_gettime(CLOCK_REALTIME, &t1);
 #endif
+        pthread_mutex_lock(&logmutex);
         mmask = cv::Mat(img_h, img_w, CV_8UC4, m->get_canvas());
+        pthread_mutex_unlock(&logmutex);
         cv::resize(mmask, mmask, cv::Size(bgr.cols, bgr.rows));
         cv::cvtColor(mmask, mmask, cv::COLOR_BGR2RGB);
         cv::addWeighted(bgr, 0.5, mmask, 0.5, 0.5, bgr);
@@ -328,10 +334,6 @@ void luckfox_play(mandel<MTYPE> *mandel)
 #ifdef VIDEO_CAPTURE
         if (blend)
         {
-#ifdef TOUCH
-            struct ts_sample samp;
-            memset(&samp, 0, sizeof(struct ts_sample));
-#endif
             // cap.set(cv::CAP_PROP_FRAME_WIDTH, img_w);
             // cap.set(cv::CAP_PROP_FRAME_HEIGHT, img_h);
             cap.open(video_device);
