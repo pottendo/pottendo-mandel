@@ -399,9 +399,11 @@ class mandel
                 int ret;
                 pthread_t th = (pthread_t)0;
                 pthread_attr_init(&attr[t]);
+#ifdef __ZEPHYR__                
                 ret = pthread_attr_setstack(&attr[t], stacks + t * STACK_SIZE, STACK_SIZE);
                 if (ret != 0)
                     log_msg("setstack: %d - ssize = %d\n", ret, STACK_SIZE);
+#endif                    
                 if ((ret = pthread_create(&th, &attr[t], mandel_wrapper, tp[t])) != 0)
                     log_msg("pthread create failed for thread %d, %d\n", t, ret);
                 ret = pthread_detach(th);
@@ -598,9 +600,11 @@ class mandel
         {
             tpq[t] = new tqparam_t(t, master_sem, this);
             pthread_attr_init(&attr[t]);
+#ifdef __ZEPHYR__            
             ret = pthread_attr_setstack(&attr[t], stacks + t * STACK_SIZE, STACK_SIZE);
             if (ret != 0)
                 log_msg("setstack: %d - ssize = %d\n", ret, STACK_SIZE);
+#endif                
             if ((ret = pthread_create(&th, &attr[t], mandel_qwrapper, tpq[t])) != 0)
                 log_msg("pthread create failed for thread %d, %d\n", t, ret);
             if ((ret = pthread_detach(th)) != 0)
@@ -675,7 +679,7 @@ public:
     mandel(canvas_t c, char *st, myDOUBLE xl, myDOUBLE yl, myDOUBLE xh, myDOUBLE yh, int xr, int yr, myDOUBLE xrat = 1.0)
         : canvas(c), stacks(st), xres(xr), yres(yr), xratio(xrat), stop(0)
     {
-#if defined (__linux__) || defined(LUCKFOX)
+#if defined(__linux__) || defined(LUCKFOX)
 	luckfox_palette(col_pal);
 	int c1 = 0;
 	for (int i = 0; i < xr - 2; i += 2, c1++)

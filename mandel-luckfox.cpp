@@ -22,7 +22,7 @@ extern int img_w, img_h;
 
 CANVAS_TYPE *init_luckfox(void)
 {
-#ifdef FB_DEVICE    
+#ifdef FB_DEVICE   
     static int fd;
 
     struct fb_fix_screeninfo fb_fix;
@@ -40,6 +40,8 @@ CANVAS_TYPE *init_luckfox(void)
     img_w = fb_var.xres;
     img_h = fb_var.yres;
     log_msg("%s: img = %dx%d\n", __FUNCTION__, img_w, img_h);
+    if (blend)/* can't render in fb directly when blending */
+        return NULL;
     tft_canvas = (CANVAS_TYPE *)mmap(NULL, (img_w * img_h * sizeof(CANVAS_TYPE)), PROT_WRITE | PROT_READ, MAP_SHARED, fd, 0);
     if (tft_canvas == MAP_FAILED)
     {
@@ -221,7 +223,7 @@ void luckfox_zoom(mandel<MTYPE> *m, struct ts_sample *samp)
 #define setup_ts(...)
 #endif	
 //#include <iostream>
-   /* class private functinos */
+   /* class private functions */
 inline void timespec_diff(struct timespec *a, struct timespec *b, struct timespec *result)
 {
         result->tv_sec = a->tv_sec - b->tv_sec;
@@ -254,13 +256,13 @@ void *vstream(void *arg)
             {
                 // luckfox_rect(mask, samp.x, samp.y, samp.x + 5, samp.y + 5, 0);
                 luckfox_zoom(m, &samp);
-                mmask = cv::Mat(img_h, img_w, CVCOL, m->get_canvas());
-                cv::resize(mmask, mmask, cv::Size(bgr.cols, bgr.rows));
-                mmask = rgb565ToCV8UC3(mmask);
+                //mmask = cv::Mat(img_h, img_w, CVCOL, m->get_canvas());
+                //cv::resize(mmask, mmask, cv::Size(bgr.cols, bgr.rows));
+                //i = rgb565ToCV8UC3(mmask);
                 memset(&samp, 0, sizeof(struct ts_sample));
-            }
+            } 
 #endif
-            i = cv::Mat(img_h, img_w, CVCOL, m->get_canvas());
+            i = cv::Mat(IMG_H, IMG_W, CVCOL, m->get_canvas());
             cv::cvtColor(i, i, cv::COLOR_BGR2RGB);
             cv::imshow("fb", i);
 #ifndef LUCKFOX
@@ -280,18 +282,16 @@ void *vstream(void *arg)
         struct timespec t1, t2, t3, d1, d2;
         clock_gettime(CLOCK_REALTIME, &t1);
 #endif
-        pthread_mutex_lock(&logmutex);
         mmask = cv::Mat(img_h, img_w, CVCOL, m->get_canvas());
-        pthread_mutex_unlock(&logmutex);
-        cv::resize(mmask, mmask, cv::Size(bgr.cols, bgr.rows));
 #ifndef LUCKFOX        
+        cv::resize(mmask, mmask, cv::Size(bgr.cols, bgr.rows));
         cv::cvtColor(mmask, mmask, cv::COLOR_BGR2RGB);
 #else        
+        cv::resize(bgr, bgr, cv::Size(img_w, img_h));
         mmask = rgb565ToCV8UC3(mmask);
 #endif        
-        cv::addWeighted(bgr, 0.5, mmask, 0.5, 0.5, bgr);
-        //    cv::bitwise_and(bgr, mmask, bgr);
-
+        cv::addWeighted(bgr, 0.5, mmask, 0.5, 0.0, bgr);
+        //cv::bitwise_and(bgr, mmask, bgr);
 #ifdef BENCHMARK
         clock_gettime(CLOCK_REALTIME, &t2);
         timespec_diff(&t2, &t1, &d1);
@@ -323,6 +323,7 @@ void *vstream(void *arg)
         if ((img_w != bgr.cols) || (img_h != bgr.rows))
             cv::resize(bgr, bgr, cv::Size(img_w, img_h));
         cv::imshow("fb", bgr);
+        mmask = 0;
 #ifndef LUCKFOX
         cv::waitKey(1);
 #endif
@@ -370,6 +371,6 @@ void luckfox_play(mandel<MTYPE> *mandel)
 
 #endif
     //cv::waitKey(0);
-
-    sleep(1);
+//    while(1) 
+        sleep(3);
 }

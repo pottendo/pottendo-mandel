@@ -3,7 +3,7 @@
 /* definition section for globals to adapt for some variation */
 #define MTYPE double // long long int  // double
 //#define INTMATH              // goes along with int above, on Intels or other fast FPUs, double/float can be faster
-#define MAX_ITER_INIT 1024
+#define MAX_ITER_INIT 160
 //#define C64   // build for C64 GFX output
 
 // some global internals, no need to change normally
