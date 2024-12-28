@@ -2,25 +2,34 @@
 #include <cstring>
 #include <math.h>
 #include <vector>
+#include <stdio.h>
 
 #include "mandel-arch.h"
 
 #ifdef PTHREADS
 pthread_mutex_t canvas_sem;
 pthread_mutex_t logmutex;
-int log_level = 0;
 void log_msg(const char *s, ...)
 {
+    va_list args;
+    va_start(args, s);
     pthread_mutex_lock(&logmutex);
-    {
-        va_list args;
-        va_start(args, s);
-        vprintf(s, args);
-        va_end(args);
-    }
+    vprintf(s, args);
     pthread_mutex_unlock(&logmutex);
+    va_end(args);
 }
 
+#else
+void log_msg(const char *s, ...)
+{
+    va_list args;
+    va_start(args, s);
+    vprintf(s, args);
+    va_end(args);
+}
+#endif  /* PTHREADS */
+
+int log_level = 0;
 void log_msg(int lv, const char *s, ...)
 {
     if (lv <= log_level)
@@ -33,7 +42,6 @@ void log_msg(int lv, const char *s, ...)
         va_end(args);
     }
 }
-#endif  /* PTHREADS */
 
 // globals
 int img_w = 800, img_h=480;   // used by luckfox
@@ -165,16 +173,9 @@ std::vector<frec_t> frecs = {
     {-0.922912, -0.291426, -0.922791, -0.291305},
     {-0.922882, -0.291395, -0.922852, -0.291365},
     {-0.922859, -0.291384, -0.922852, -0.291377}};
-#else
-std::vector<rec_t> recs = {
-//    {{00, IMG_H / 4}, {IMG_W / 2, IMG_H / 4 * 3}},
-//    {{00, IMG_H / 4}, {IMG_W / 2, IMG_H / 4 * 3}},
-//    {{IMG_W / 4, IMG_H / 4}, {IMG_W / 4 + 200, IMG_H / 4 * 3}},
-};
-
 #endif
 
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; i < 1; i++)
     {
         hook1();
         mandel<MTYPE> *m = new mandel<MTYPE>{cv, stacks, 
@@ -196,12 +197,12 @@ std::vector<rec_t> recs = {
     delete[] cv;
     delete[] stacks;
 #else
-    log_msg("system halted");
+    log_msg("system halted.\n");
     while (1)
     {   
-//        log_msg(".");
-//        fflush(stdout);
-//        sleep(5);
+        //log_msg(".");
+        //fflush(stdout);
+        //usleep(50 * 1000);
     }
 #endif
     return 0;

@@ -43,7 +43,6 @@ void log_msg(int lv, const char *s, ...);
 extern pthread_mutex_t logmutex;
 #else
 #define NO_THREADS 1 // singlethreaded
-#define log_msg printf
 #define STACK_SIZE 1024
 #endif
 #define MAX_ITER iter   // relict
@@ -156,8 +155,6 @@ void luckfox_play(mandel<MTYPE> *mandel);
 #error "too many threads for Orangencart's STACK_SIZE"
 #endif
 #define CANVAS_TYPE char
-#define IMG_W 320
-#define IMG_H 200
 #define SCRDEPTH 2
 #define CSIZE ((IMG_W/8) * IMG_H)
 #define PAL_SIZE (1L << SCRDEPTH)
@@ -175,6 +172,8 @@ extern char *c64_screen_init(void);
 #undef alloc_stack
 #define alloc_stack c64_stack
 #ifdef C64
+#define IMG_W 320
+#define IMG_H 200
 #undef setup_screen
 #define setup_screen c64_screen_init
 #undef alloc_canvas
@@ -182,9 +181,30 @@ extern char *c64_screen_init(void);
 #define hook1 c64_hook1
 #define hook2 c64_hook2
 #else
+#define IMG_W 120
+#define IMG_H 48
 #define hook1(...)
 #define hook2(...)
 #endif
+
+#elif defined(PICO) // PICO ------------------------------------------------
+#define clock_gettime(...) 0
+#define COL16BIT
+#define TOUCH
+#define CANVAS_TYPE uint16_t
+#define IMG_W 240
+#define IMG_H 240
+#define PAL_SIZE (512 * 16)
+#define PIXELW 1
+#define CSIZE (img_w * img_h)
+
+#define canvas_setpx pico_setpx
+#define setup_screen pico_init
+#define zoom_ui(...)
+#define hook1(...)
+#define hook2(...)
+void pico_setpx(CANVAS_TYPE *canvas, int x, int y, int c);
+CANVAS_TYPE *pico_init(void);
 
 #else // non-specific architectures-----------------------------------------
 #define IMG_W 120
