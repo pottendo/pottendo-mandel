@@ -67,7 +67,7 @@ typedef struct {
     MTYPE yh;
 } frec_t;
 
-#ifndef __ZEPHYR__
+#if !defined(__ZEPHYR__) && !defined(PICO)
 int main(int argc, char *argv[])
 {
     if (argc > 1)
@@ -127,8 +127,10 @@ int main(int argc, char *argv[])
 #else
 int main(void)
 {
+#if defined(__ZEPHYR__)
     usleep(1000*50); // wait for boot banner
-#endif /* ZEPHYR */    
+#endif    
+#endif /* ZEPHYR && PICO*/    
 #ifdef PTHREADS    
     pthread_mutex_init(&logmutex, NULL);
 #endif

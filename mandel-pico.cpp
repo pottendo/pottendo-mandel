@@ -23,9 +23,9 @@ ili9341_config_t ili9341_config = {
 
 void pixel_set(UG_S16 x, UG_S16 y, UG_COLOR rgb)
 {
-    uint16_t R = (rgb >> 16) & 0x0000FF;
-    uint16_t G = (rgb >> 8) & 0x0000FF;
-    uint16_t B = rgb & 0x0000FF;
+    uint16_t B = ((rgb >> 16) & 0x0000FF) << 1;
+    uint16_t G = ((rgb >> 8) & 0x0000FF) << 1;
+    uint16_t R = (rgb & 0x0000FF) << 1;
     UG_COLOR RGB16 = RGBConv(R,G,B);
     draw_pixel(x,y,RGB16);
 }

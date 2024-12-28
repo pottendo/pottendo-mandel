@@ -1,5 +1,6 @@
-cmake_minimum_required(VERSION 3.10)
 
+# for pico under VSCode - run "cmake -G Ninja -B build"
+#set(TARGETX pico)
 set(TARGETX $ENV{TARGET})
 if(${TARGETX}x STREQUAL "luckfoxx")
 set(SDK_PATH $ENV{LUCKFOX_SDK_PATH})
@@ -19,6 +20,21 @@ set(ARCHSRC "mandel-luckfox.cpp")
 set(TSLIBS "ts")
 
 elseif(${TARGETX}x STREQUAL "picox")
+# == DO NOT EDIT THE FOLLOWING LINES for the Raspberry Pi Pico VS Code Extension to work ==
+if(WIN32)
+    set(USERHOME $ENV{USERPROFILE})
+else()
+    set(USERHOME $ENV{HOME})
+endif()
+set(sdkVersion 2.1.0)
+set(toolchainVersion 13_3_Rel1)
+set(picotoolVersion 2.1.0)
+set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
+if (EXISTS ${picoVscode})
+    include(${picoVscode})
+endif()
+# ====================================================================================
+cmake_minimum_required(VERSION 3.10)
 set(SDK_PATH $ENV{PICO_SDK_PATH})
 if(NOT SDK_PATH)
     message(WARNING "Please Set pico SDK Path. Such as:export PICO_SDK_PATH=/home/user/.pico-sdk/sdk/2.1.0")

@@ -196,10 +196,11 @@ extern char *c64_screen_init(void);
 #define IMG_H 240
 #define PAL_SIZE (512 * 16)
 #define PIXELW 1
-#define CSIZE (img_w * img_h)
+#define CSIZE (IMG_W * IMG_H)
 
 #define canvas_setpx pico_setpx
 #define setup_screen pico_init
+#define alloc_stacks NULL
 #define zoom_ui(...)
 #define hook1(...)
 #define hook2(...)
