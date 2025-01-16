@@ -67,7 +67,7 @@ typedef struct {
     MTYPE yh;
 } frec_t;
 
-#if !defined(__ZEPHYR__) && !defined(PICO)
+#if !defined(__ZEPHYR__) && !defined(PICO) && !defined(ESP32)
 int main(int argc, char *argv[])
 {
     if (argc > 1)

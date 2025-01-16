@@ -711,7 +711,7 @@ public:
     canvas_t get_canvas(void) { return canvas; }
     void dump_result(void)
     {
-#if !defined(C64) && !defined(__amiga__) && !defined(VIDEO_CAPTURE)
+#if !defined(C64) && !defined(__amiga__) && !defined(VIDEO_CAPTURE) && !defined(ESP32)
         canvas_dump(canvas);
 #endif
         struct timespec dt;

@@ -206,7 +206,25 @@ extern char *c64_screen_init(void);
 #define hook2(...)
 void pico_setpx(CANVAS_TYPE *canvas, int x, int y, int c);
 CANVAS_TYPE *pico_init(void);
+#elif defined(ESP32)    // ESP32-------------------------------------------
+#define SCRDEPTH 3
+#define PAL_SIZE (_PAL_SIZE)
+#define PIXELW 1 // 2
+#define CSIZE ((IMG_W/8) * IMG_H * PIXELW)
+#define CANVAS_TYPE char
 
+#define canvas_setpx esp32_setpx
+#define setup_screen(...) NULL
+#define zoom_ui esp32_zoomui
+#define hook1(...)
+#define hook2(...)
+#define IMG_W img_w
+#define IMG_H img_h
+void esp32_setpx(CANVAS_TYPE *canvas, int x, int y, int c);
+extern int iter;
+extern int img_w, img_h;
+#include "mandelbrot.h"
+void esp32_zoomui(mandel<MTYPE> *m);
 #else // non-specific architectures-----------------------------------------
 #define IMG_W 120
 #define IMG_H 48
