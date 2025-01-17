@@ -91,10 +91,10 @@ void luckfox_palette(int *col_pal)
     for (i = 0; i < 128; i++)
     {
         t = i << 1;
-        col_pal[i] = t;
+        col_pal[i] = ((255 - t) << 16) | t;
         col_pal[128 + i] = ((255 - t) | (t << 8));
         col_pal[256 + i] = ((255 - t) << 8) | (t << 16);
-        col_pal[384 + i] = ((255 - t) << 16);
+        col_pal[384 + i] = ((255 - t) << 16) | t;
     }
     for (i = 1; i < 4; i++)
     {

@@ -177,7 +177,7 @@ std::vector<frec_t> frecs = {
     {-0.922859, -0.291384, -0.922852, -0.291377}};
 #endif
 
-    for (int i = 0; i < 1; i++)
+    while(1)
     {
         hook1();
         mandel<MTYPE> *m = new mandel<MTYPE>{cv, stacks, 
