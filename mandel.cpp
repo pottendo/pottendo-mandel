@@ -67,7 +67,7 @@ typedef struct {
     MTYPE yh;
 } frec_t;
 
-#if !defined(__ZEPHYR__) && !defined(PICO) && !defined(ESP32)
+#if !defined(__ZEPHYR__) && !defined(PICO) && !defined(ESP32) && !defined(ESP8266)
 int main(int argc, char *argv[])
 {
     if (argc > 1)
@@ -130,8 +130,8 @@ int main(void)
 #if defined(__ZEPHYR__)
     usleep(1000*50); // wait for boot banner
 #endif    
-#endif /* ZEPHYR && PICO*/    
-#ifdef PTHREADS    
+#endif /* ZEPHYR && PICO && ESPs*/    
+#ifdef PTHREADS
     pthread_mutex_init(&logmutex, NULL);
 #endif
     log_msg("Welcome mandelbrot...\n");
@@ -143,7 +143,6 @@ int main(void)
         (do_mq == 1) ? "message queue sync" :
         (do_mq > 1) ? "producer consumer sync": "unknown");
 #endif        
-
     stacks = alloc_stack;
     cv = setup_screen();
     if (!cv) cv = alloc_canvas;
@@ -163,21 +162,22 @@ std::vector<rec_t> recs = {
         {{120,75}, {159, 125}},
     };
 
-std::vector<frec_t> frecs = {
+const std::vector<frec_t> frecs = {
     //{-1.500000, -1.000000, 0.500000, 1.000000},
-    {-1.500000, -1.000000, -0.500000, 0.000000},
-    {-1.000000, -0.500000, -0.506250, -0.005000},
-    {-1.000000, -0.376250, -0.876563, -0.252500},
-    {-0.938281, -0.308187, -0.907422, -0.277250},
-    {-0.926709, -0.296586, -0.918994, -0.288852},
-    {-0.923816, -0.292332, -0.921887, -0.290398},
-    {-0.923093, -0.291607, -0.922610, -0.291124},
-    {-0.922912, -0.291426, -0.922791, -0.291305},
-    {-0.922882, -0.291395, -0.922852, -0.291365},
-    {-0.922859, -0.291384, -0.922852, -0.291377}};
-#endif
+    {static_cast<MTYPE>(INTIFY(-1.500000)), static_cast<MTYPE>(INTIFY(-1.000000)), static_cast<MTYPE>(INTIFY(-0.500000)), static_cast<MTYPE>(INTIFY(0.000000))},
+    {static_cast<MTYPE>(INTIFY(-1.000000)), static_cast<MTYPE>(INTIFY(-0.500000)), static_cast<MTYPE>(INTIFY(-0.506250)), static_cast<MTYPE>(INTIFY(-0.005000))},
+    {static_cast<MTYPE>(INTIFY(-1.000000)), static_cast<MTYPE>(INTIFY(-0.376250)), static_cast<MTYPE>(INTIFY(-0.876563)), static_cast<MTYPE>(INTIFY(-0.252500))},
+    {static_cast<MTYPE>(INTIFY(-0.938281)), static_cast<MTYPE>(INTIFY(-0.308187)), static_cast<MTYPE>(INTIFY(-0.907422)), static_cast<MTYPE>(INTIFY(-0.277250))},
+    {static_cast<MTYPE>(INTIFY(-0.926709)), static_cast<MTYPE>(INTIFY(-0.296586)), static_cast<MTYPE>(INTIFY(-0.918994)), static_cast<MTYPE>(INTIFY(-0.288852))},
+    {static_cast<MTYPE>(INTIFY(-0.923816)), static_cast<MTYPE>(INTIFY(-0.292332)), static_cast<MTYPE>(INTIFY(-0.921887)), static_cast<MTYPE>(INTIFY(-0.290398))},
+    {static_cast<MTYPE>(INTIFY(-0.923093)), static_cast<MTYPE>(INTIFY(-0.291607)), static_cast<MTYPE>(INTIFY(-0.922610)), static_cast<MTYPE>(INTIFY(-0.291124))},
+    {static_cast<MTYPE>(INTIFY(-0.922912)), static_cast<MTYPE>(INTIFY(-0.291426)), static_cast<MTYPE>(INTIFY(-0.922791)), static_cast<MTYPE>(INTIFY(-0.291305))},
+    {static_cast<MTYPE>(INTIFY(-0.922882)), static_cast<MTYPE>(INTIFY(-0.291395)), static_cast<MTYPE>(INTIFY(-0.922852)), static_cast<MTYPE>(INTIFY(-0.291365))},
+    {static_cast<MTYPE>(INTIFY(-0.922859)), static_cast<MTYPE>(INTIFY(-0.291384)), static_cast<MTYPE>(INTIFY(-0.922852)), static_cast<MTYPE>(INTIFY(-0.291377))}
+    };
 
-    while(1)
+#endif
+    for (;;)
     {
         hook1();
         mandel<MTYPE> *m = new mandel<MTYPE>{cv, stacks, 
