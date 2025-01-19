@@ -9,6 +9,7 @@ void esp32_showstat(void)
     printf("Free heap: %d/%d %d max block\n", ESP.getFreeHeap(), ESP.getHeapSize(),ESP.getMaxAllocHeap());
     printf("Free PSRAM: %d/%d %d max block\n",ESP.getFreePsram(), ESP.getPsramSize(),ESP.getMaxAllocPsram());
 #else    
+#ifndef ESP8266
     Serial.print("Model: ");
     Serial.print(ESP.getChipModel());
     Serial.print(", Freq: ");
@@ -23,6 +24,9 @@ void esp32_showstat(void)
     Serial.print(ESP.getFreePsram());
     Serial.print("/");
     Serial.println(ESP.getPsramSize());
+#else
+    printf("Chip ID: %d, Heap: %d\n", ESP.getChipId(), ESP.getFreeHeap());
+#endif    
 #endif
 }
 
@@ -38,6 +42,7 @@ void esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
 void esp32_zoomui(mandel<MTYPE> *m)
 {
     display.display();
+    esp32_showstat();
     //while(1) sleep(1);
 }
 
@@ -68,6 +73,7 @@ void esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
 void esp32_zoomui(mandel<MTYPE> *m)
 {
     obd.display();
+    esp32_showstat();
     //while(1) sleep(1);
 }
 
@@ -112,8 +118,8 @@ void setup(void)
     esp32_showstat();
 
     iter = 64;
-    img_w = EPD_7IN5_V2_WIDTH / 2;
-    img_h = EPD_7IN5_V2_HEIGHT / 2;
+    img_w = EPD_7IN5_V2_WIDTH;
+    img_h = EPD_7IN5_V2_HEIGHT;
 
     DEV_Module_Init();
 
@@ -135,35 +141,148 @@ void setup(void)
     Paint_NewImage(BlackImage, EPD_7IN5_V2_WIDTH, EPD_7IN5_V2_HEIGHT, 0, BLACK);
 
     EPD_7IN5_V2_Init_Fast();
-    Paint_SetScale(4);
+    //Paint_SetScale(4);
     printf("SelectImage:BlackImage\r\n");
     Paint_SelectImage(BlackImage);
     Paint_Clear(WHITE);
-    Paint_DrawLine(20, 70, 70, 120, BLACK, DOT_PIXEL_1X1, LINE_STYLE_SOLID);
-    Paint_DrawLine(70, 70, 20, 120, BLACK, DOT_PIXEL_1X1, LINE_STYLE_SOLID);
-    Paint_DrawRectangle(20, 70, 70, 120, BLACK, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
-    Paint_DrawRectangle(80, 70, 130, 120, BLACK, DOT_PIXEL_1X1, DRAW_FILL_FULL);
-    Paint_DrawCircle(45, 95, 20, BLACK, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
-    Paint_DrawCircle(105, 95, 20, WHITE, DOT_PIXEL_1X1, DRAW_FILL_FULL);
-    Paint_DrawLine(85, 95, 125, 95, BLACK, DOT_PIXEL_1X1, LINE_STYLE_DOTTED);
-    Paint_DrawLine(105, 75, 105, 115, BLACK, DOT_PIXEL_1X1, LINE_STYLE_DOTTED);
-
-    printf("EPD_Display\r\n");
-    EPD_7IN5_V2_Display(BlackImage);
     main();
 }
 
 void esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
 {
     int col;
-    col = (c == 0) ? WHITE : BLACK;
-    Paint_DrawPoint(x, y, c, DOT_PIXEL_2X2, DOT_STYLE_DFT);
+    col = (c & 1) ? WHITE : BLACK;
+    Paint_DrawPoint(x, y, col, DOT_PIXEL_1X1, DOT_STYLE_DFT);
 }
 
 void esp32_zoomui(mandel<MTYPE> *m)
 {
     EPD_7IN5_V2_Display(BlackImage);
+    esp32_showstat();
     // while(1) sleep(1);
+}
+
+#elif defined(HELTEC)
+#include "heltec.h"
+void setup(void)
+{
+    Heltec.begin(true /*DisplayEnable Enable*/, true /*Serial Enable*/);
+    Heltec.display->setContrast(255);
+    img_w = DISPLAY_WIDTH / 2;
+    img_h = DISPLAY_HEIGHT;
+    main();
+}
+
+void esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
+{
+    OLEDDISPLAY_COLOR col;
+    col = (c & 1) ? WHITE : BLACK;
+    Heltec.display->setColor(col);
+    Heltec.display->drawHorizontalLine(x, y, (DISPLAY_WIDTH/2) - x);
+    Heltec.display->drawLine((DISPLAY_WIDTH - 1) - x, y, (DISPLAY_WIDTH/2), y);
+    Heltec.display->display();
+}
+
+void esp32_zoomui(mandel<MTYPE> *m)
+{
+    esp32_showstat();
+    delay(5 * 1000);
+}
+#elif defined(LEDMATRIX)
+
+#define MATRIX_WIDTH 64
+#define MATRIX_HEIGHT 64
+#include <ESP32-HUB75-MatrixPanel-I2S-DMA.h>
+MatrixPanel_I2S_DMA dma_display;
+
+#define R1_PIN 2
+#define G1_PIN 15
+#define B1_PIN 4
+#define R2_PIN 32
+#define G2_PIN 27
+#define B2_PIN 23
+#define A_PIN 5
+#define B_PIN 18
+#define C_PIN 19
+#define D_PIN 21
+#define E_PIN 33 // Change to a valid pin if using a 64 pixel row panel.
+#define LAT_PIN 26
+#define OE_PIN 25
+#define CLK_PIN 22
+
+class rgb_24
+{
+public:
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+
+    rgb_24() { r = g = b = 0; }
+    rgb_24(uint8_t r, uint8_t g, uint8_t b) : r(r), g(g), b(b) {}
+    ~rgb_24() = default;
+};
+static rgb_24 ct[256];
+
+void esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
+{
+    dma_display.drawPixelRGB888(x, y, ct[c].r, ct[c].g, ct[c].b);
+}
+
+void setup(void)
+{
+    Serial.begin(115200);
+    delay(500);
+    iter = 500;
+    img_w = MATRIX_WIDTH;
+    img_h = MATRIX_HEIGHT;
+    for (int i = 0; i < 80; i++)
+    {
+        ct[1 + i] = rgb_24(15 + i * 3, 0, 0);
+        ct[81 + i] = rgb_24(0, 15 + i * 3, 0);
+        ct[161 + i] = rgb_24(0, 0, 15 + i * 3);
+    }
+    dma_display.begin(R1_PIN, G1_PIN, B1_PIN, R2_PIN, G2_PIN, B2_PIN, A_PIN, B_PIN, C_PIN, D_PIN, E_PIN, LAT_PIN, OE_PIN, CLK_PIN);
+    dma_display.fillCircle(32, 32, 20, 0x63000f);
+    dma_display.flipDMABuffer();
+    main();
+}
+
+void esp32_zoomui(mandel<MTYPE> *m)
+{
+    dma_display.flush();
+    dma_display.flipDMABuffer();
+    esp32_showstat();
+    delay(5 * 1000);
+}
+#elif TTGO
+#include <TFT_eSPI.h> // Graphics and font library for ST7735 driver chip
+#include <SPI.h>
+#define BLACK 0x0000
+
+TFT_eSPI tft = TFT_eSPI(); // Invoke library, pins defined in User_Setup.h
+
+void esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
+{
+    tft.drawPixel(x, y, c);
+}
+
+void setup(void)
+{
+    Serial.begin(115200);
+    delay(2 * 1000);
+    esp32_showstat();
+    tft.init();
+    tft.setRotation(1);
+    tft.fillScreen(BLACK);
+    img_h = TFT_WIDTH;
+    img_w = TFT_HEIGHT;
+    main();
+}
+
+void esp32_zoomui(mandel<MTYPE> *m)
+{
+    esp32_showstat();
+    delay(5 * 1000);
 }
 
 #else
@@ -171,5 +290,5 @@ void esp32_zoomui(mandel<MTYPE> *m)
 #endif
 void loop(void)
 {
-    sleep(10);
+    delay(10 * 1000);
 }

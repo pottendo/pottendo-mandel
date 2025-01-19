@@ -1,7 +1,7 @@
 #ifndef __MANDEL_ARCH_H__
 #define __MANDEL_ARCH_H__
 /* definition section for globals to adapt for some variation */
-#define MTYPE double // long long int  // double
+#define MTYPE double //long long int  // double
 //#define INTMATH              // goes along with int above, on Intels or other fast FPUs, double/float can be faster
 #define MAX_ITER_INIT 160
 //#define C64   // build for C64 GFX output
@@ -38,7 +38,7 @@ void log_msg(int lv, const char *s, ...);
 #ifdef PTHREAD_STACK_MIN
 #define STACK_SIZE PTHREAD_STACK_MIN
 #else
-#define STACK_SIZE 1024
+#define STACK_SIZE (1024)
 #endif
 extern pthread_mutex_t logmutex;
 #else
@@ -47,7 +47,7 @@ extern pthread_mutex_t logmutex;
 #endif
 #define MAX_ITER iter   // relict
 
-#ifdef __amiga__ //-------------------------------------------------------------------
+#if defined(__amiga__) //-------------------------------------------------------------------
 #include <proto/exec.h>
 #include <proto/dos.h>
 #include <exec/io.h>
@@ -100,10 +100,8 @@ void amiga_zoom_ui(mandel<MTYPE> *m);
 #define hook1(...)
 #define hook2(...)
 #endif /* __cplusplus */
-#else  /* __amiga__ */
 
-#ifdef __linux__ //-------------------------------------------------------------------
-
+#elif defined(__linux__) //-------------------------------------------------------------------
 #ifdef LUCKFOX
 #define VIDEO_CAPTURE
 #define FB_DEVICE
@@ -116,41 +114,33 @@ void amiga_zoom_ui(mandel<MTYPE> *m);
 #define CANVAS_TYPE uint32_t
 #define CVCOL CV_8UC4
 #endif
-
 //#define BENCHMARK
-
 #define IMG_W img_w
 #define IMG_H img_h
 //#define SCRDEPTH 24  // or 6 for 64cols lesser resolution
 #define PAL_SIZE (512 * 16)
 #define PIXELW 1
 #define CSIZE (img_w * img_h) /// 8
-
 #ifndef PTHREAD_STACK_MIN
 #undef STACK_SIZE
 #define STACK_SIZE 16384
 #endif
-
 extern CANVAS_TYPE *tft_canvas;		// must not be static?!
-
 void luckfox_setpx(CANVAS_TYPE *canvas, int x, int y, int c);
 CANVAS_TYPE *init_luckfox(void);
 void luckfox_palette(int *p);
 void luckfox_rect(CANVAS_TYPE *c, int x1, int y1, int x2, int y2, int col);
-
 #define zoom_ui luckfox_play
 #define setup_screen init_luckfox
 #define canvas_setpx luckfox_setpx
 #define hook1(...)
 #define hook2(...)
-
 extern int iter, video_device, blend, do_mq;
 extern int img_w, img_h;
 #include "mandelbrot.h"
 void luckfox_play(mandel<MTYPE> *mandel);
 
-#else 
-#if defined(C64) || defined (__ZEPHYR__) //--------------------------------------------
+#elif defined(C64) || defined (__ZEPHYR__) //--------------------------------------------
 #if (NO_THREADS > 16)
 #error "too many threads for Orangencart's STACK_SIZE"
 #endif
@@ -206,18 +196,26 @@ extern char *c64_screen_init(void);
 #define hook2(...)
 void pico_setpx(CANVAS_TYPE *canvas, int x, int y, int c);
 CANVAS_TYPE *pico_init(void);
-#elif defined(ESP32)    // ESP32-------------------------------------------
+
+#elif defined(ESP32) || defined(ESP8266)   // ESP32-------------------------------------------
 #define SCRDEPTH 3
 #define PAL_SIZE (_PAL_SIZE)
 #define PIXELW 1 // 2
 #define CSIZE ((IMG_W/8) * IMG_H * PIXELW)
 #define CANVAS_TYPE char
-
+#undef alloc_canvas
+#undef alloc_stack
+#define alloc_stack NULL
+#define alloc_canvas NULL
 #define canvas_setpx esp32_setpx
 #define setup_screen(...) NULL
 #define zoom_ui esp32_zoomui
 #define hook1(...)
 #define hook2(...)
+
+#ifdef ESP8266
+#define clock_gettime(...) 0
+#endif
 #define IMG_W img_w
 #define IMG_H img_h
 void esp32_setpx(CANVAS_TYPE *canvas, int x, int y, int c);
@@ -225,6 +223,7 @@ extern int iter;
 extern int img_w, img_h;
 #include "mandelbrot.h"
 void esp32_zoomui(mandel<MTYPE> *m);
+
 #else // non-specific architectures-----------------------------------------
 #define IMG_W 120
 #define IMG_H 48
@@ -236,11 +235,10 @@ void esp32_zoomui(mandel<MTYPE> *m);
 
 #define canvas_setpx canvas_setpx_
 #define setup_screen(...) NULL
+
 #define zoom_ui(...)
 #define hook1(...)
 #define hook2(...)
 
-#endif /* C64 || __ZEPHYR__ */
-#endif /* LUCKFOX */
 #endif /* __amiga__ */
 #endif /* __MANDEL_ARCH_H__*/

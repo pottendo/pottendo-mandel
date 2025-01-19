@@ -35,13 +35,24 @@ typedef struct
 
 #ifdef PTHREADS
 #include <pthread.h>
+#if defined(ESP32)
+#include <Arduino.h>
+#define sem_t SemaphoreHandle_t
+#define sem_wait(x) xSemaphoreTake(*x, portMAX_DELAY)
+#define sem_post(x) xSemaphoreGive(*x)
+#define sem_init(x, b, c) *x = xSemaphoreCreateCounting(NO_THREADS, c)
+#define sem_destroy(x) vSemaphoreDelete(*x)
+#define pthread_attr_getstack(...) 0
+#else
 #include <semaphore.h>
 #include <mqueue.h>
+#endif
 extern pthread_mutex_t canvas_sem;
 #define P P_
 #define V V_
-
 #define MQ_NAME "/mandel_feed"
+
+
 #else
 // make those calls dummies
 #define pthread_mutex_init(...)
@@ -94,7 +105,7 @@ class mandel
         }
         ~tparam_t()
         {
-            // log_msg("cleaning up params\n");
+            //log_msg("cleaning up params for thread %d\n", tno);
             pthread_mutex_destroy(&go);
         }
         friend std::ostream &operator<<(std::ostream &ostr, tparam_t &t)
@@ -126,6 +137,7 @@ class mandel
     /* class local variables */
 #ifdef PTHREADS
     pthread_attr_t attr[NO_THREADS];
+#if !defined(ESP32)    
     // mq attributes for message queue setup
     struct mq_attr mqattr;
 
@@ -137,6 +149,7 @@ class mandel
     int pcout = 0;
     #define PCBUFFER_SIZE (NO_THREADS + 16)
     point_t pcbuffer[PCBUFFER_SIZE];
+#endif    
 #endif
     sem_t master_sem;
 
@@ -253,7 +266,11 @@ class mandel
             nb_iter++;
         }
         if (nb_iter < max_iter)
+#if (_PAL_SIZE == 2)
+            return nb_iter;
+#else        
             return (col_pal[(nb_iter % (PAL_SIZE - 1)) + 1]);
+#endif            
         else
             return 0;
     }
@@ -418,11 +435,12 @@ class mandel
     void go(void)
     {
 #ifdef PTHREADS
+#if !defined(ESP32)
         memset(canvas, 0, CSIZE);
+#endif        
         if (clock_gettime(CLOCK_REALTIME, &tstart) < 0)
             perror("clock_gettime()");
             // log_msg("start at %ld.%06ld\n", tstart.tv_sec % 60, tstart.tv_nsec / 1000);
-#endif
         for (int i = 0; i < NO_THREADS; i++)
         {
             // usleep(250 * 1000);
@@ -434,11 +452,11 @@ class mandel
             log_msg(2, "main thread waiting for %i threads...\n", i);
             PSem(master_sem); // wait until all workers have finished
         }
+#endif
 
         if (clock_gettime(CLOCK_REALTIME, &tend) < 0)
             perror("clock_gettime()");
         //log_msg("end at %ld.%06ld\n", tend.tv_sec % 60, tend.tv_nsec / 1000);
-
         log_msg(2, "all threads finished.\n");
         free_ressources();
         stop = 0;
@@ -448,15 +466,16 @@ class mandel
     {
         for (int i = 0; i < NO_THREADS; i++)
         {
+#ifdef PTHREADS            
             int ret;
             if ((ret = pthread_attr_destroy(&attr[i])) != 0)
                 log_msg("pthread_attr_destroy failed: %d\n", ret);
-
+#endif
             delete tp[i];
         }
     }
 
-#ifdef PTHREADS
+#if defined(PTHREADS) && !defined(ESP32)
     inline int produce(point_t &p, mqd_t mq = (mqd_t) -1)
     {
         return mq_send(mq, (char *) &p, sizeof(point_t), 0);
@@ -656,7 +675,7 @@ void action(myDOUBLE xl, myDOUBLE yl, myDOUBLE xh, myDOUBLE yh)
     char c1;
     read(0, &c1, 1);
 #endif
-#ifdef PTHREADS
+#if defined(PTHREADS) && !defined(ESP32)
         if (do_mq)
         {
             // Initialize semaphores and mutex
@@ -698,8 +717,8 @@ public:
         pthread_mutex_init(&canvas_sem, nullptr);
         sem_init(&master_sem, 0, 0);
         action(xl, yl, xh, yh);
-
     }
+
     ~mandel()
     {
         log_msg("%s destructor\n", __FUNCTION__);
@@ -711,7 +730,7 @@ public:
     canvas_t get_canvas(void) { return canvas; }
     void dump_result(void)
     {
-#if !defined(C64) && !defined(__amiga__) && !defined(VIDEO_CAPTURE) && !defined(ESP32)
+#if !defined(C64) && !defined(__amiga__) && !defined(VIDEO_CAPTURE) && !defined(ESP32) && !defined(ESP8266)
         canvas_dump(canvas);
 #endif
         struct timespec dt;
