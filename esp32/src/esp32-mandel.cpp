@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "mandel-arch.h"
+#include "esp_system.h"
 int main(void);
 
 void esp32_showstat(void)
@@ -49,7 +50,9 @@ void esp32_zoomui(mandel<MTYPE> *m)
 void setup(void)
 {
     Serial.begin(115200);
-    display.begin();
+    disableCore0WDT();
+    disableCore1WDT();
+display.begin();
     esp32_showstat();
     img_w = display.width();
     img_h = display.height();
@@ -80,6 +83,8 @@ void esp32_zoomui(mandel<MTYPE> *m)
 void setup(void)
 {
     Serial.begin(115200);
+    disableCore0WDT();
+    disableCore1WDT();
     esp32_showstat();
 
     obd.setI2CPins(SDA_PIN, SCL_PIN);
@@ -115,7 +120,9 @@ static UBYTE *BlackImage = nullptr;
 void setup(void)
 {
     Serial.begin(115200);
-    esp32_showstat();
+    disableCore0WDT();
+    disableCore1WDT();
+   esp32_showstat();
 
     iter = 64;
     img_w = EPD_7IN5_V2_WIDTH;
@@ -188,6 +195,42 @@ void esp32_zoomui(mandel<MTYPE> *m)
     esp32_showstat();
     delay(5 * 1000);
 }
+
+#elif defined(HELTECESP32)
+#include "heltec.h"
+//#include <Wire.h>  
+//#include "HT_SSD1306Wire.h"
+
+static SSD1306Wire  display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RST_OLED); // addr , freq , i2c group , resolution , rst
+
+void setup(void)
+{
+    disableCore0WDT();
+    disableCore1WDT();
+    display.init();
+    display.clear();
+    display.display();
+
+    img_w = DISPLAY_WIDTH;
+    img_h = DISPLAY_HEIGHT;
+    main();
+}
+
+void esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
+{
+    DISPLAY_COLOR col;
+    col = (c & 1) ? WHITE : BLACK;
+    display.setColor(col);
+    display.drawHorizontalLine(x, y, (DISPLAY_WIDTH) - x);
+    //display.drawLine((DISPLAY_WIDTH - 1) - x, y, (DISPLAY_WIDTH/2), y);
+    display.display();
+}
+
+void esp32_zoomui(mandel<MTYPE> *m)
+{
+    esp32_showstat();
+    delay(5 * 1000);
+}
 #elif defined(LEDMATRIX)
 
 #define MATRIX_WIDTH 64
@@ -231,8 +274,10 @@ void esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
 void setup(void)
 {
     Serial.begin(115200);
+    disableCore0WDT();
+    disableCore1WDT();
     delay(500);
-    iter = 500;
+    iter = 2000;
     img_w = MATRIX_WIDTH;
     img_h = MATRIX_HEIGHT;
     for (int i = 0; i < 80; i++)
@@ -269,11 +314,14 @@ void esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
 void setup(void)
 {
     Serial.begin(115200);
-    delay(2 * 1000);
+    disableCore0WDT();
+    disableCore1WDT();
+    delay(1000);
     esp32_showstat();
     tft.init();
     tft.setRotation(1);
     tft.fillScreen(BLACK);
+    iter = 241;
     img_h = TFT_WIDTH;
     img_w = TFT_HEIGHT;
     main();
@@ -283,6 +331,23 @@ void esp32_zoomui(mandel<MTYPE> *m)
 {
     esp32_showstat();
     delay(5 * 1000);
+}
+
+#elif defined(ESP32CONSOLE)
+void setup(void)
+{
+    Serial.begin(115200);
+    disableCore0WDT();
+    disableCore1WDT();
+    img_w = 120;
+    img_h = 48;
+    main();
+}
+
+void esp32_zoomui(mandel<MTYPE> *m)
+{
+    esp32_showstat();
+    delay(3 * 1000);
 }
 
 #else

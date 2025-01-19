@@ -51,8 +51,6 @@ extern pthread_mutex_t canvas_sem;
 #define P P_
 #define V V_
 #define MQ_NAME "/mandel_feed"
-
-
 #else
 // make those calls dummies
 #define pthread_mutex_init(...)
@@ -78,7 +76,6 @@ extern pthread_mutex_t canvas_sem;
 #define P(...)
 #define V(...)
 #endif /* PTHREADS */
-
 
 template <typename myDOUBLE>
 class mandel
@@ -117,6 +114,8 @@ class mandel
             return ostr;
         }
     };
+    tparam_t *tp[NO_THREADS];
+#ifdef MANDEL_MQ    
     struct tqparam_t
     {
         int tno;
@@ -127,9 +126,8 @@ class mandel
             : tno(t), sem(se), mo(th)
         {}
     };
-
-    tparam_t *tp[NO_THREADS];
     tqparam_t *tpq[NO_THREADS];
+#endif    
     // char *stacks[NO_THREADS];
     int &max_iter = MAX_ITER;
     uint8_t _mask;
@@ -730,7 +728,7 @@ public:
     canvas_t get_canvas(void) { return canvas; }
     void dump_result(void)
     {
-#if !defined(C64) && !defined(__amiga__) && !defined(VIDEO_CAPTURE) && !defined(ESP32) && !defined(ESP8266)
+#if !defined(C64) && !defined(__amiga__) && !defined(VIDEO_CAPTURE) && !defined(ESP32) && !defined(ESP8266) || defined(ESP32CONSOLE)
         canvas_dump(canvas);
 #endif
         struct timespec dt;

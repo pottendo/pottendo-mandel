@@ -33,7 +33,6 @@ void log_msg(int lv, const char *s, ...);
 #include <stdio.h>
 #include <time.h>
 #include <pthread.h>
-#define MANDEL_MQ
 #define NO_THREADS 16 // max 16 for Orangecart!
 #ifdef PTHREAD_STACK_MIN
 #define STACK_SIZE PTHREAD_STACK_MIN
@@ -125,6 +124,7 @@ void amiga_zoom_ui(mandel<MTYPE> *m);
 #undef STACK_SIZE
 #define STACK_SIZE 16384
 #endif
+#define MANDEL_MQ
 extern CANVAS_TYPE *tft_canvas;		// must not be static?!
 void luckfox_setpx(CANVAS_TYPE *canvas, int x, int y, int c);
 CANVAS_TYPE *init_luckfox(void);
@@ -198,16 +198,26 @@ void pico_setpx(CANVAS_TYPE *canvas, int x, int y, int c);
 CANVAS_TYPE *pico_init(void);
 
 #elif defined(ESP32) || defined(ESP8266)   // ESP32-------------------------------------------
+
+#if defined(ESP32CONSOLE)
+#define SCRDEPTH 2
+#define PAL_SIZE (1L << SCRDEPTH)
+#define PIXELW 2 // 2
+#define CSIZE ((IMG_W/8) * IMG_H * PIXELW)
+#define CANVAS_TYPE char
+#define canvas_setpx canvas_setpx_
+#else
 #define SCRDEPTH 3
 #define PAL_SIZE (_PAL_SIZE)
 #define PIXELW 1 // 2
 #define CSIZE ((IMG_W/8) * IMG_H * PIXELW)
 #define CANVAS_TYPE char
 #undef alloc_canvas
-#undef alloc_stack
-#define alloc_stack NULL
 #define alloc_canvas NULL
 #define canvas_setpx esp32_setpx
+#endif  /* ESP32CONSOLE */
+#undef alloc_stack
+#define alloc_stack NULL
 #define setup_screen(...) NULL
 #define zoom_ui esp32_zoomui
 #define hook1(...)
