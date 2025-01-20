@@ -5,7 +5,7 @@ int main(void);
 
 void esp32_showstat(void)
 {
-#if 0    
+#if 0
     printf("Chip model: %s, %dMHz, %d cores\n", ESP.getChipModel(), ESP.getCpuFreqMHz(), ESP.getChipCores());
     printf("Free heap: %d/%d %d max block\n", ESP.getFreeHeap(), ESP.getHeapSize(),ESP.getMaxAllocHeap());
     printf("Free PSRAM: %d/%d %d max block\n",ESP.getFreePsram(), ESP.getPsramSize(),ESP.getMaxAllocPsram());
@@ -15,7 +15,7 @@ void esp32_showstat(void)
     Serial.print(ESP.getChipModel());
     Serial.print(", Freq: ");
     Serial.print(ESP.getCpuFreqMHz());
-    Serial.print(", Cores: ");
+    Serial.print("MHz, Cores: ");
     Serial.print(ESP.getChipCores());
     Serial.print(", Heap: ");
     Serial.print(ESP.getFreeHeap());
@@ -277,7 +277,7 @@ void setup(void)
     disableCore0WDT();
     disableCore1WDT();
     delay(500);
-    iter = 2000;
+    iter = 500;
     img_w = MATRIX_WIDTH;
     img_h = MATRIX_HEIGHT;
     for (int i = 0; i < 80; i++)
@@ -287,7 +287,6 @@ void setup(void)
         ct[161 + i] = rgb_24(0, 0, 15 + i * 3);
     }
     dma_display.begin(R1_PIN, G1_PIN, B1_PIN, R2_PIN, G2_PIN, B2_PIN, A_PIN, B_PIN, C_PIN, D_PIN, E_PIN, LAT_PIN, OE_PIN, CLK_PIN);
-    dma_display.fillCircle(32, 32, 20, 0x63000f);
     dma_display.flipDMABuffer();
     main();
 }

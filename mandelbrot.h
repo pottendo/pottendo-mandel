@@ -102,8 +102,10 @@ class mandel
         }
         ~tparam_t()
         {
+            int res;
             //log_msg("cleaning up params for thread %d\n", tno);
-            pthread_mutex_destroy(&go);
+            if ((res = pthread_mutex_destroy(&go)) != 0)
+                log_msg("%s: pthread_mutex_destroy failed, may loose memory! res = %d\n", __FUNCTION__, res);
         }
         friend std::ostream &operator<<(std::ostream &ostr, tparam_t &t)
         {
@@ -371,6 +373,7 @@ class mandel
         sched_yield();
         mandel_helper(p->xl, p->yl, p->xh, p->yh, p->incx, p->incy, p->xoffset, p->yoffset, p->width, p->height);
         log_msg(2, "finished thread %d\n", p->tno);
+        V(p->go);     // ensure mutex isn't locked, otherwise esp32 can't destroy without loosing memory
         VSem(p->sem); // report we've done our job
         return 0;
     }
