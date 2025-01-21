@@ -35,16 +35,23 @@ void esp32_showstat(void)
 #include "Inkplate.h"
 Inkplate display;
 
-void esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
+int esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
 {
     display.drawPixel(x, y, c);
+    if (display.readTouchpad(PAD1))
+    {
+        log_msg("%s: touch 1 -> clear display\n", __FUNCTION__);
+        display.clearDisplay();
+        display.display();
+        return 1;
+    }
+    return 0;
 }
 
 void esp32_zoomui(mandel<MTYPE> *m)
 {
     display.display();
     esp32_showstat();
-    //while(1) sleep(1);
 }
 
 void setup(void)
@@ -52,11 +59,11 @@ void setup(void)
     Serial.begin(115200);
     disableCore0WDT();
     disableCore1WDT();
-display.begin();
+    display.begin();
     esp32_showstat();
     img_w = display.width();
     img_h = display.height();
-    iter = 64;
+    iter = 128;
     main();
 }
 #elif defined(ULCD)
@@ -71,6 +78,7 @@ void esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
 {
     obd.drawPixel(x, y, c);
     obd.display();
+    return 0;
 }
 
 void esp32_zoomui(mandel<MTYPE> *m)
@@ -122,9 +130,9 @@ void setup(void)
     Serial.begin(115200);
     disableCore0WDT();
     disableCore1WDT();
-   esp32_showstat();
+    esp32_showstat();
 
-    iter = 64;
+    iter = 241;
     img_w = EPD_7IN5_V2_WIDTH;
     img_h = EPD_7IN5_V2_HEIGHT;
 
@@ -155,11 +163,12 @@ void setup(void)
     main();
 }
 
-void esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
+int esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
 {
     int col;
     col = (c & 1) ? WHITE : BLACK;
     Paint_DrawPoint(x, y, col, DOT_PIXEL_1X1, DOT_STYLE_DFT);
+    return 0;
 }
 
 void esp32_zoomui(mandel<MTYPE> *m)
@@ -180,7 +189,7 @@ void setup(void)
     main();
 }
 
-void esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
+int esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
 {
     OLEDDISPLAY_COLOR col;
     col = (c & 1) ? WHITE : BLACK;
@@ -188,6 +197,7 @@ void esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
     Heltec.display->drawHorizontalLine(x, y, (DISPLAY_WIDTH/2) - x);
     Heltec.display->drawLine((DISPLAY_WIDTH - 1) - x, y, (DISPLAY_WIDTH/2), y);
     Heltec.display->display();
+    return 0;
 }
 
 void esp32_zoomui(mandel<MTYPE> *m)
@@ -216,7 +226,7 @@ void setup(void)
     main();
 }
 
-void esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
+int esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
 {
     DISPLAY_COLOR col;
     col = (c & 1) ? WHITE : BLACK;
@@ -224,6 +234,7 @@ void esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
     display.drawHorizontalLine(x, y, (DISPLAY_WIDTH) - x);
     //display.drawLine((DISPLAY_WIDTH - 1) - x, y, (DISPLAY_WIDTH/2), y);
     display.display();
+    return 0;
 }
 
 void esp32_zoomui(mandel<MTYPE> *m)
@@ -266,9 +277,10 @@ public:
 };
 static rgb_24 ct[256];
 
-void esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
+int esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
 {
     dma_display.drawPixelRGB888(x, y, ct[c].r, ct[c].g, ct[c].b);
+    return 0;
 }
 
 void setup(void)
@@ -305,9 +317,10 @@ void esp32_zoomui(mandel<MTYPE> *m)
 
 TFT_eSPI tft = TFT_eSPI(); // Invoke library, pins defined in User_Setup.h
 
-void esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
+int esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
 {
     tft.drawPixel(x, y, c);
+    return 0;
 }
 
 void setup(void)

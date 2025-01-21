@@ -179,7 +179,7 @@ class mandel
         sem_post(&s);
     }
 
-    void canvas_setpx_(canvas_t &canvas, coord_t x, coord_t y, color_t c)
+    int canvas_setpx_(canvas_t &canvas, coord_t x, coord_t y, color_t c)
     {
         uint32_t h = x % (8 / PIXELW);
         uint32_t shift = (8 / PIXELW - 1) - h;
@@ -194,7 +194,7 @@ class mandel
         {
             log_msg("Exceeding canvas!! %d, %d/%d\n", cidx, x, y);
             // delay (100 * 1000);
-            return;
+            return 0;
         }
         char t = canvas[cidx];
         t &= mask;
@@ -205,6 +205,7 @@ class mandel
         //*led = ((*led) + 1);
 #endif
         // sched_yield();
+        return 0;
     }
 
     void dump_bits(uint8_t c, uint8_t *buf)
@@ -301,25 +302,18 @@ class mandel
             {
                 int d = mandel_calc_point(x, y);
                 P(canvas_sem);
-#ifdef __amiga__
-                int amiga_setpixel(void *, int x, int y, int col);
-                if (stop || (stop = amiga_setpixel(NULL, xk + xo, yk + yo, d)))
+                if (stop || (stop = canvas_setpx(canvas, xk + xo, yk + yo, d)))
                 {
                     V(canvas_sem);
                     goto out;
                 }
-#else
-                canvas_setpx(canvas, xk + xo, yk + yo, d);
-#endif
                 V(canvas_sem);
                 y += incy;
             }
             x += incx;
         }
-#ifdef __amiga__	
         out:
         ;
-#endif	
     }
 
     static void *mandel_wrapper(void *param)

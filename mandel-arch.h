@@ -93,8 +93,10 @@ extern int iter;
 #include "mandelbrot.h"
 CANVAS_TYPE *amiga_setup_screen(void);
 void amiga_zoom_ui(mandel<MTYPE> *m);
+int amiga_setpixel(void *, int x, int y, int col);
 
 #define setup_screen amiga_setup_screen
+#define canvas_setpx amiga_setpixel
 #define zoom_ui amiga_zoom_ui
 #define hook1(...)
 #define hook2(...)
@@ -228,7 +230,7 @@ CANVAS_TYPE *pico_init(void);
 #endif
 #define IMG_W img_w
 #define IMG_H img_h
-void esp32_setpx(CANVAS_TYPE *canvas, int x, int y, int c);
+int esp32_setpx(CANVAS_TYPE *canvas, int x, int y, int c);
 extern int iter;
 extern int img_w, img_h;
 #include "mandelbrot.h"
