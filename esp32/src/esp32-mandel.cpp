@@ -199,7 +199,7 @@ void esp32_zoomui(mandel<MTYPE> *m)
     delay(5 * 1000);
 }
 
-#elif defined(HELTECESP32)
+#elif defined(HELTECESP32) || defined(HELTECESP32_RCV)
 #include <Wire.h>
 #include <OneBitDisplay.h>
 extern TwoWire *pWire;
@@ -228,6 +228,40 @@ void send_lora(char *m)
     LoRa.endPacket();
 }
 
+#ifdef HELTECESP32_RCV
+String rssi = "RSSI --";
+String packSize = "--";
+String packet;
+void cbk(int packetSize) {
+        packet ="";
+        char m[16 * 64], *t;
+        int c = 0, x, y, d, i;
+
+        packSize = String(packetSize,DEC);
+        for (i = 0; i < packetSize; i++) { packet += m[c++] = (char) LoRa.read(); }
+        rssi = "RSSI " + String(LoRa.packetRssi(), DEC) ;
+        m[c] = '\0';
+        Serial.println(rssi + ", size = " + packSize + ", " + String(m));
+        t = m;
+        while (*t != '\0') {
+                x = strtol(t, &t, 10);
+                //Serial.print("x: "); Serial.print(x);
+                t++;
+                y = strtol(t, &t, 10);
+                //Serial.print(",y: "); Serial.print(y);
+                t++;
+                d = strtol(t, &t, 10);
+                //Serial.print(",d: "); Serial.println(d);
+                t++;
+                if (d != 0) {
+                    obd.drawPixel(x, y, d);
+                    obd.display();
+                }
+        }
+        //LoRaData();
+}
+#endif
+
 int esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
 {
     static char buf[16 * 128];
@@ -246,7 +280,7 @@ int esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
         obd.display();
         send_lora(buf);
         count = idx = 0;
-        log_msg("%s: sent LoRa msg in %ld\n", __FUNCTION__, millis() - s);
+        //log_msg("%s: sent LoRa msg in %ld\n", __FUNCTION__, millis() - s);
     }
 
     return 0;
@@ -284,7 +318,16 @@ void setup(void)
     img_w = obd.width();
     img_h = obd.height();
     iter = 241;
+#ifdef HELTECESP32_RCV    
+    LoRa.receive();
+    while (1) {
+        int packetSize = LoRa.parsePacket();
+        if (packetSize) { cbk(packetSize);  }
+            delay(10);
+    }
+#else
     main();
+#endif    
 }
 
 #elif defined(LEDMATRIX)
