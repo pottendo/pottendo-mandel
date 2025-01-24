@@ -54,7 +54,7 @@ extern pthread_mutex_t canvas_sem;
 #else
 // make those calls dummies
 #define pthread_mutex_init(...)
-#define pthread_mutex_destroy(...)
+#define pthread_mutex_destroy(...) 0
 #define pthread_mutex_lock(...)
 #define pthread_mutex_unlock(...)
 #define sem_wait(...)

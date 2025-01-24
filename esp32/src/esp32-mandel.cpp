@@ -74,10 +74,10 @@ extern TwoWire *pWire;
 #define SCL_PIN 40
 ONE_BIT_DISPLAY obd;
 
-void esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
+int esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
 {
-    obd.drawPixel(x, y, c);
-    obd.display();
+    if (c & 1)
+        obd.drawPixel(x, y, c);
     return 0;
 }
 
@@ -85,7 +85,9 @@ void esp32_zoomui(mandel<MTYPE> *m)
 {
     obd.display();
     esp32_showstat();
-    //while(1) sleep(1);
+    delay(3*1000);
+    obd.fillScreen(0);
+    obd.display();
 }
 
 void setup(void)
@@ -105,16 +107,7 @@ void setup(void)
     obd.display();
     img_w = obd.width();
     img_h = obd.height();
-    iter = 64;
-    /*
-        for (int x = 0; x < img_w; x++)
-            for (int y = 0; y < img_h; y++)
-            {
-                obd.drawPixel(x, y, 1);
-                obd.display();
-                delay(100);
-            }
-            */
+    iter = 241;
     main();
 }
 #elif defined(WAVESHARE)
@@ -207,41 +200,93 @@ void esp32_zoomui(mandel<MTYPE> *m)
 }
 
 #elif defined(HELTECESP32)
-#include "heltec.h"
-//#include <Wire.h>  
-//#include "HT_SSD1306Wire.h"
+#include <Wire.h>
+#include <OneBitDisplay.h>
+extern TwoWire *pWire;
+#define SDA_PIN 4
+#define SCL_PIN 15
+#define RST_PIN 16
+ONE_BIT_DISPLAY obd;
+#include <heltec.h>
+//#define BAND    868E6  //you can set band here directly,e.g. 868E6,915E6
+#define BAND     433E6 //you can set band here directly,e.g. 868E6,915E6
 
-static SSD1306Wire  display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RST_OLED); // addr , freq , i2c group , resolution , rst
-
-void setup(void)
+void send_lora(char *m)
 {
-    disableCore0WDT();
-    disableCore1WDT();
-    display.init();
-    display.clear();
-    display.display();
-
-    img_w = DISPLAY_WIDTH;
-    img_h = DISPLAY_HEIGHT;
-    main();
+    // send packet
+    LoRa.beginPacket();
+    /*
+     * LoRa.setTxPower(txPower,RFOUT_pin);
+     * txPower -- 0 ~ 20
+     * RFOUT_pin could be RF_PACONFIG_PASELECT_PABOOST or RF_PACONFIG_PASELECT_RFO
+     *   - RF_PACONFIG_PASELECT_PABOOST -- LoRa single output via PABOOST, maximum output 20dBm
+     *   - RF_PACONFIG_PASELECT_RFO     -- LoRa single output via RFO_HF / RFO_LF, maximum output 14dBm
+     */
+    LoRa.setTxPower(14, RF_PACONFIG_PASELECT_PABOOST);
+    LoRa.print(m);
+    // LoRa.print(counter);
+    LoRa.endPacket();
 }
 
 int esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
 {
-    DISPLAY_COLOR col;
-    col = (c & 1) ? WHITE : BLACK;
-    display.setColor(col);
-    display.drawHorizontalLine(x, y, (DISPLAY_WIDTH) - x);
-    //display.drawLine((DISPLAY_WIDTH - 1) - x, y, (DISPLAY_WIDTH/2), y);
-    display.display();
+    static char buf[16 * 128];
+    static int idx;
+    static int count = 0;
+
+    if (c & 1)
+        obd.drawPixel(x, y, c);
+
+    snprintf(&buf[idx], 64, "%d/%d/%d/", x, y, (c & 1));
+    idx += strlen(&buf[idx]);
+    count++;
+    if ((count % 16) == 0)
+    {
+        long s = millis();
+        obd.display();
+        send_lora(buf);
+        count = idx = 0;
+        log_msg("%s: sent LoRa msg in %ld\n", __FUNCTION__, millis() - s);
+    }
+
     return 0;
 }
 
 void esp32_zoomui(mandel<MTYPE> *m)
 {
+    obd.display();
     esp32_showstat();
-    delay(5 * 1000);
+    delay(3*1000);
+    while(1)
+        sleep(1);
+    obd.fillScreen(0);
+    obd.display();
 }
+
+void setup(void)
+{
+    Serial.begin(115200);
+    disableCore0WDT();
+    disableCore1WDT();
+
+    Heltec.begin(false /*Heltec.displayEnable Enable*/, true /*Heltec.Heltec.Heltec.LoRa Disable*/, false /*Serial Enable*/, true /*PABOOST Enable*/, BAND /*long BAND*/);
+
+    esp32_showstat();
+
+    obd.setI2CPins(SDA_PIN, SCL_PIN, RST_PIN);
+    obd.I2Cbegin(OLED_128x64);
+    obd.allocBuffer();
+    //obd.setContrast(50);
+    obd.fillScreen(0);
+    obd.setFont(FONT_8x8);
+    obd.println("Starting...");
+    obd.display();
+    img_w = obd.width();
+    img_h = obd.height();
+    iter = 241;
+    main();
+}
+
 #elif defined(LEDMATRIX)
 
 #define MATRIX_WIDTH 64
