@@ -23,7 +23,9 @@
 #define alloc_canvas new CANVAS_TYPE[CSIZE]()
 
 void log_msg(const char *s, ...);
+#if !defined(AMIGA_HACK)
 void log_msg(int lv, const char *s, ...);
+#endif
 //#define NO_LOG
 #ifdef NO_LOG
 #define log_msg(...)
@@ -88,18 +90,18 @@ extern pthread_mutex_t logmutex;
 #define WINX (IMG_W / 1)
 #define WINY (IMG_H / 1)
 
-#ifdef __cplusplus
-extern int iter;
-#include "mandelbrot.h"
-CANVAS_TYPE *amiga_setup_screen(void);
-void amiga_zoom_ui(mandel<MTYPE> *m);
 int amiga_setpixel(void *, int x, int y, int col);
-
+CANVAS_TYPE *amiga_setup_screen(void);
 #define setup_screen amiga_setup_screen
 #define canvas_setpx amiga_setpixel
 #define zoom_ui amiga_zoom_ui
 #define hook1(...)
 #define hook2(...)
+
+#ifdef __cplusplus
+extern int iter;
+#include "mandelbrot.h"
+void amiga_zoom_ui(mandel<MTYPE> *m);
 #endif /* __cplusplus */
 
 #elif defined(__linux__) //-------------------------------------------------------------------
@@ -127,6 +129,7 @@ int amiga_setpixel(void *, int x, int y, int col);
 #define STACK_SIZE 16384
 #endif
 #define MANDEL_MQ
+
 extern CANVAS_TYPE *tft_canvas;		// must not be static?!
 void luckfox_setpx(CANVAS_TYPE *canvas, int x, int y, int c);
 CANVAS_TYPE *init_luckfox(void);

@@ -45,7 +45,9 @@ typedef struct
 #define pthread_attr_getstack(...) 0
 #else
 #include <semaphore.h>
+#ifdef MANDEL_MQ
 #include <mqueue.h>
+#endif
 #endif
 extern pthread_mutex_t canvas_sem;
 #define P P_
@@ -137,7 +139,7 @@ class mandel
     /* class local variables */
 #ifdef PTHREADS
     pthread_attr_t attr[NO_THREADS];
-#if !defined(ESP32)    
+#if defined(MANDEL_MQ)    
     // mq attributes for message queue setup
     struct mq_attr mqattr;
 
@@ -470,7 +472,7 @@ class mandel
         }
     }
 
-#if defined(PTHREADS) && !defined(ESP32)
+#if defined(PTHREADS) && defined(MANDEL_MQ)
     inline int produce(point_t &p, mqd_t mq = (mqd_t) -1)
     {
         return mq_send(mq, (char *) &p, sizeof(point_t), 0);
@@ -660,8 +662,7 @@ class mandel
         if (do_mq == 1)
             mq_close(mq);
     }
-#endif /* PTHREADS */
-
+#endif /* PTHREADS && MANDEL_MQ */
 
 void action(myDOUBLE xl, myDOUBLE yl, myDOUBLE xh, myDOUBLE yh)
 {
@@ -670,7 +671,7 @@ void action(myDOUBLE xl, myDOUBLE yl, myDOUBLE xh, myDOUBLE yh)
     char c1;
     read(0, &c1, 1);
 #endif
-#if defined(PTHREADS) && !defined(ESP32)
+#if defined(PTHREADS) && defined(MANDEL_MQ)
         if (do_mq)
         {
             // Initialize semaphores and mutex
