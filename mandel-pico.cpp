@@ -84,7 +84,8 @@ CANVAS_TYPE *pico_init(void)
     return NULL;
 }
 
-void pico_setpx(CANVAS_TYPE *canvas, int x, int y, int c)
+int pico_setpx(CANVAS_TYPE *canvas, int x, int y, int c)
 {
     UG_DrawPixel(x, y, c);
+    return 0;
 }

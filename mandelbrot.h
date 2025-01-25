@@ -40,7 +40,7 @@ typedef struct
 #define sem_t SemaphoreHandle_t
 #define sem_wait(x) xSemaphoreTake(*x, portMAX_DELAY)
 #define sem_post(x) xSemaphoreGive(*x)
-#define sem_init(x, b, c) *x = xSemaphoreCreateCounting(NO_THREADS, c)
+#define sem_init(x, b, c) *x = xSemaphoreCreateCounting(NO_THREADS + 16, c)
 #define sem_destroy(x) vSemaphoreDelete(*x)
 #define pthread_attr_getstack(...) 0
 #else
@@ -119,7 +119,12 @@ class mandel
         }
     };
     tparam_t *tp[NO_THREADS];
-#ifdef MANDEL_MQ    
+    // char *stacks[NO_THREADS];
+    int &max_iter = MAX_ITER;
+    uint8_t _mask;
+
+    /* class local variables */
+#ifdef PTHREADS
     struct tqparam_t
     {
         int tno;
@@ -131,18 +136,11 @@ class mandel
         {}
     };
     tqparam_t *tpq[NO_THREADS];
-#endif    
-    // char *stacks[NO_THREADS];
-    int &max_iter = MAX_ITER;
-    uint8_t _mask;
-
-    /* class local variables */
-#ifdef PTHREADS
     pthread_attr_t attr[NO_THREADS];
 #if defined(MANDEL_MQ)    
     // mq attributes for message queue setup
     struct mq_attr mqattr;
-
+#endif
     // Semaphores for prod/consumer setup
     sem_t pcempty;  // Counts empty slots in the buffer
     sem_t pcfull;   // Counts full slots in the buffer
@@ -151,7 +149,6 @@ class mandel
     int pcout = 0;
     #define PCBUFFER_SIZE (NO_THREADS + 16)
     point_t pcbuffer[PCBUFFER_SIZE];
-#endif    
 #endif
     sem_t master_sem;
 
@@ -472,7 +469,8 @@ class mandel
         }
     }
 
-#if defined(PTHREADS) && defined(MANDEL_MQ)
+#if defined(PTHREADS)
+#if defined (MANDEL_MQ)
     inline int produce(point_t &p, mqd_t mq = (mqd_t) -1)
     {
         return mq_send(mq, (char *) &p, sizeof(point_t), 0);
@@ -482,7 +480,7 @@ class mandel
     {
          return mq_receive(mq, (char *)&p, sizeof(point_t), NULL);
     }
-
+#endif
     inline int pcproduce(point_t &p)
     {
         PSem(pcempty);
@@ -514,8 +512,7 @@ class mandel
     }
 
     int mandel_qwrapper_2(void *param)
-    {        
-        mqd_t mq = (mqd_t) -1;
+    {
         tqparam_t *p = (tqparam_t *)param;
 #ifdef __linux__
         sched_param sp;
@@ -541,15 +538,15 @@ class mandel
             c = st[i];
         }
         log_msg(2, "%s: thread %d's stack is at %p with size %d, %d\n", __FUNCTION__, p->tno, st, sts, c);
-
+#if defined(MANDEL_MQ)
+        mqd_t mq = (mqd_t) -1;
         if (do_mq == 1)
         {
             mq = mq_open(MQ_NAME, O_CREAT | O_RDONLY, 0644, &mqattr);
             if (mq == (mqd_t)-1)
-            {
                 log_msg("%s: mq_open failed: %d\n", __FUNCTION__, errno);
-            }
         }
+#endif        
         VSem(p->sem);
         ssize_t res;
         point_t point;
@@ -559,31 +556,45 @@ class mandel
 
         while (1)
         {
-            res = ((do_mq == 1) ? consume(point, mq) : pcconsume(point));
+            res = 
+#if defined(MANDEL_MQ)            
+            ((do_mq == 1) ? consume(point, mq) : pcconsume(point));
+#else
+            pcconsume(point);
+#endif            
             //log_msg("%s: thread %d received: %d,%d\n", __FUNCTION__, p->tno, point.x, point.y);
             if (res < 0)
                 log_msg("%s: mq_receive failed: %d\n", __FUNCTION__, errno);
             if (point.x < 0)
                 break;
             tcount++;
-            canvas_setpx(canvas, point.x, point.y, 
-                         mandel_calc_point(std::complex<myDOUBLE>(point.x * stepx + transx, point.y * stepy + transy)));
+            P(canvas_sem);
+            if (stop || (stop = canvas_setpx(canvas, point.x, point.y, 
+                                mandel_calc_point(std::complex<myDOUBLE>(point.x * stepx + transx, point.y * stepy + transy)))))
+            {
+                V(canvas_sem);
+                break;
+            }
+            V(canvas_sem);                         
             //sched_yield();
         }
         log_msg(1, "%s: thread %d delivered %d results\n", __FUNCTION__, p->tno, tcount);
         VSem(p->sem);
 
+#if defined(MANDEL_MQ)
         if (do_mq == 1)
             mq_close(mq);
+#endif            
         return 0;
     }
 
     void mandel_mq(const int thread_no, myDOUBLE sx, myDOUBLE sy, myDOUBLE tx, myDOUBLE ty)
     {
-        mqd_t mq = (mqd_t) -1;;
         pthread_t th;
         int ret;
         mandel_presetup(sx, sy, tx, ty);
+#if defined(MANDEL_MQ)        
+        mqd_t mq = (mqd_t) -1;;
 
         mqattr.mq_flags = 0;
         mqattr.mq_maxmsg = PCBUFFER_SIZE;
@@ -599,6 +610,7 @@ class mandel
                 exit(1);
             }
         }
+#endif        
 #ifdef __linux__
         sched_param sp;
         int pol = -1;
@@ -635,7 +647,13 @@ class mandel
         for (int x = 0; x < IMG_W / PIXELW; x++) {
             for (auto y = 0; y < IMG_H; y++) {
                 point_t p{x, y};
-                ret = ((do_mq == 1) ? produce(p, mq) : pcproduce(p));
+                ret = 
+#if defined(MANDEL_MQ)                
+                ((do_mq == 1) ? produce(p, mq) : pcproduce(p));
+#else
+                pcproduce(p);                
+#endif                
+                
                 //log_msg("%s: main thread produced: %d,%d\n", __FUNCTION__, p.x, p.y);
                 if (ret < 0)
                     log_msg("%s: mq_send failed: %d\n", __FUNCTION__, errno);
@@ -647,7 +665,12 @@ class mandel
         // send end-marker '-1' in xcoord.
         point_t pe{-1, -1};
         for(int i = 0; i < thread_no; i++)
-            ret = ((do_mq == 1) ? produce(pe, mq) : pcproduce(pe));
+            ret = 
+#if defined(MANDEL_MQ)            
+            ((do_mq == 1) ? produce(pe, mq) : pcproduce(pe));
+#else
+            pcproduce(pe);
+#endif            
 
         // end-sync & cleanup
         for (auto t = thread_no; t != 0; t--)
@@ -659,10 +682,12 @@ class mandel
         }
         log_msg(2, "%s: done.\n", __FUNCTION__);
 
+#if defined(MANDEL_MQ)
         if (do_mq == 1)
             mq_close(mq);
+#endif            
     }
-#endif /* PTHREADS && MANDEL_MQ */
+#endif /* PTHREADS */
 
 void action(myDOUBLE xl, myDOUBLE yl, myDOUBLE xh, myDOUBLE yh)
 {
@@ -671,7 +696,7 @@ void action(myDOUBLE xl, myDOUBLE yl, myDOUBLE xh, myDOUBLE yh)
     char c1;
     read(0, &c1, 1);
 #endif
-#if defined(PTHREADS) && defined(MANDEL_MQ)
+#if defined(PTHREADS)
         if (do_mq)
         {
             // Initialize semaphores and mutex
@@ -680,6 +705,13 @@ void action(myDOUBLE xl, myDOUBLE yl, myDOUBLE xh, myDOUBLE yh)
             pcout = pcin = 0;
             pthread_mutex_init(&pcmutex, NULL);
             mandel_mq(NO_THREADS, xl, yl, xh, yh);
+            sem_destroy(&pcempty);
+            sem_destroy(&pcfull);
+            int res;
+            if ((res = pthread_mutex_destroy(&pcmutex)) != 0)
+            {
+                log_msg("%s: pthread_mutex_destroy failed: %d\n", __FUNCTION__, res);
+            } 
         }
         else
 #endif
@@ -718,7 +750,9 @@ public:
     ~mandel()
     {
         log_msg("%s destructor\n", __FUNCTION__);
+#if defined(PTHREADS)        
         pthread_mutex_destroy(&canvas_sem);
+#endif        
         sem_destroy(&master_sem);
     };
 

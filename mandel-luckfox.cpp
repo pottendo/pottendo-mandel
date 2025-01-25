@@ -110,15 +110,17 @@ void luckfox_rect(CANVAS_TYPE *cv, int x1, int y1, int x2, int y2, int c)
 	        luckfox_setpx(cv, x, y, c);
 }
 
-void luckfox_setpx(CANVAS_TYPE *canvas, int x, int y, int c)
+int luckfox_setpx(CANVAS_TYPE *canvas, int x, int y, int c)
 {
     CANVAS_TYPE *cv;
     cv = canvas ? canvas : tft_canvas;
-    if (!cv || (x < 0) || (y >= IMG_H)) return;
+    if (!cv || (x < 0) || (y >= IMG_H)) return 0;
     pthread_mutex_lock(&logmutex);
     cv[x + y * IMG_W] = c;
     //log_msg("%s: (%d,%d) = %d\n", __FUNCTION__, x, y, c);
     pthread_mutex_unlock(&logmutex);
+
+    return 0;
 }
 
 uint16_t convertToBGR565(const cv::Vec3b& bgr_pixel) 
@@ -372,5 +374,5 @@ void luckfox_play(mandel<MTYPE> *mandel)
 #endif
     //cv::waitKey(0);
 //    while(1) 
-        sleep(3);
+    sleep(3);
 }

@@ -43,10 +43,13 @@ void log_msg(int lv, const char *s, ...)
     }
 }
 
+#if !defined(MANDEL_PC)
+#define MANDEL_PC 0
+#endif
 // globals
 int img_w = 800, img_h=480;   // used by luckfox
 int iter = MAX_ITER_INIT;     // used by Amiga
-int video_device, blend, do_mq = 0;      // used by opencv
+int video_device, blend, do_mq = MANDEL_PC;      // used by opencv
 MTYPE xrat = 1.0;
 
 static CANVAS_TYPE *cv;

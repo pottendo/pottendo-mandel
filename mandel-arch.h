@@ -42,6 +42,7 @@ void log_msg(int lv, const char *s, ...);
 #define STACK_SIZE (1024)
 #endif
 extern pthread_mutex_t logmutex;
+extern int do_mq;
 #else
 #define NO_THREADS 1 // singlethreaded
 #define STACK_SIZE 1024
@@ -131,7 +132,7 @@ void amiga_zoom_ui(mandel<MTYPE> *m);
 #define MANDEL_MQ
 
 extern CANVAS_TYPE *tft_canvas;		// must not be static?!
-void luckfox_setpx(CANVAS_TYPE *canvas, int x, int y, int c);
+int luckfox_setpx(CANVAS_TYPE *canvas, int x, int y, int c);
 CANVAS_TYPE *init_luckfox(void);
 void luckfox_palette(int *p);
 void luckfox_rect(CANVAS_TYPE *c, int x1, int y1, int x2, int y2, int col);
@@ -140,7 +141,7 @@ void luckfox_rect(CANVAS_TYPE *c, int x1, int y1, int x2, int y2, int col);
 #define canvas_setpx luckfox_setpx
 #define hook1(...)
 #define hook2(...)
-extern int iter, video_device, blend, do_mq;
+extern int iter, video_device, blend;
 extern int img_w, img_h;
 #include "mandelbrot.h"
 void luckfox_play(mandel<MTYPE> *mandel);
@@ -199,7 +200,7 @@ extern char *c64_screen_init(void);
 #define zoom_ui(...)
 #define hook1(...)
 #define hook2(...)
-void pico_setpx(CANVAS_TYPE *canvas, int x, int y, int c);
+int pico_setpx(CANVAS_TYPE *canvas, int x, int y, int c);
 CANVAS_TYPE *pico_init(void);
 
 #elif defined(ESP32) || defined(ESP8266)   // ESP32-------------------------------------------
