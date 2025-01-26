@@ -48,6 +48,7 @@ extern int do_mq;
 #define STACK_SIZE 1024
 #endif
 #define MAX_ITER iter   // relict
+extern int iter;
 
 #if defined(__amiga__) //-------------------------------------------------------------------
 #include <proto/exec.h>
@@ -100,7 +101,6 @@ CANVAS_TYPE *amiga_setup_screen(void);
 #define hook2(...)
 
 #ifdef __cplusplus
-extern int iter;
 #include "mandelbrot.h"
 void amiga_zoom_ui(mandel<MTYPE> *m);
 #endif /* __cplusplus */
@@ -141,7 +141,7 @@ void luckfox_rect(CANVAS_TYPE *c, int x1, int y1, int x2, int y2, int col);
 #define canvas_setpx luckfox_setpx
 #define hook1(...)
 #define hook2(...)
-extern int iter, video_device, blend;
+extern int video_device, blend;
 extern int img_w, img_h;
 #include "mandelbrot.h"
 void luckfox_play(mandel<MTYPE> *mandel);
@@ -196,13 +196,18 @@ extern char *c64_screen_init(void);
 
 #define canvas_setpx pico_setpx
 #define setup_screen pico_init
-#define alloc_stacks NULL
+#undef alloc_canvas
+#define alloc_canvas NULL
+#undef alloc_stack
+#define alloc_stack NULL
 #define zoom_ui(...)
-#define hook1(...)
+#define hook1 pico_hook1
+//#define hook1(...)
 #define hook2(...)
 int pico_setpx(CANVAS_TYPE *canvas, int x, int y, int c);
+void pico_hook1(void);
 CANVAS_TYPE *pico_init(void);
-
+#include "mandelbrot.h"
 #elif defined(ESP32) || defined(ESP8266)   // ESP32-------------------------------------------
 
 #if defined(ESP32CONSOLE)
@@ -235,7 +240,6 @@ CANVAS_TYPE *pico_init(void);
 #define IMG_W img_w
 #define IMG_H img_h
 int esp32_setpx(CANVAS_TYPE *canvas, int x, int y, int c);
-extern int iter;
 extern int img_w, img_h;
 #include "mandelbrot.h"
 void esp32_zoomui(mandel<MTYPE> *m);

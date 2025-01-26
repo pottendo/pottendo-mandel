@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include <stdbool.h>
+#undef sem_init
+#include "pico/multicore.h"
 extern "C" {
 #include "pico-ili9341xpt2046/ili9341.h"
 #include "pico-ili9341xpt2046/ili9341_framebuffer.h"
@@ -65,6 +67,8 @@ void pico_set_led(bool led_on)
 #endif
 }
 
+static mutex_t mutex;
+
 static UG_GUI gui;
 CANVAS_TYPE *pico_init(void) 
 {
@@ -74,6 +78,8 @@ CANVAS_TYPE *pico_init(void)
     pico_set_led(true);
     sleep_ms(LED_DELAY_MS);
     pico_set_led(false);
+
+    mutex_init(&mutex);
 
     ili9341_init();
     //ts_spi_setup();
@@ -86,6 +92,53 @@ CANVAS_TYPE *pico_init(void)
 
 int pico_setpx(CANVAS_TYPE *canvas, int x, int y, int c)
 {
-    UG_DrawPixel(x, y, c);
+    int offs = 0;
+    mutex_enter_blocking(&mutex);
+    if (canvas)
+        offs = IMG_W / 2;
+    UG_DrawPixel(x + offs, y, c);
+    mutex_exit(&mutex);
     return 0;
+}
+
+//extern const std::vector<frec_t> frecs;
+
+void core1_calc(void)
+{
+    mandel<MTYPE> *m = new mandel<MTYPE>{(CANVAS_TYPE *)1, nullptr, 
+                                        static_cast<MTYPE>(INTIFY(-1.5)), static_cast<MTYPE>(INTIFY(-1.0)), 
+                                        static_cast<MTYPE>(INTIFY(0.5)), static_cast<MTYPE>(INTIFY(1.0)), 
+                                        IMG_W / PIXELW / 2, IMG_H, 1.0};
+    delete m;
+    while (1)
+    {   
+        printf("%s: done.\n", __FUNCTION__);
+        sleep_ms(1000);
+        tight_loop_contents();
+    }        
+}
+
+void pico_hook1(void)
+{
+    int i = 5;
+    while(i)
+    {
+        sleep_ms(1000);
+        printf("%s: counting %i\n", __FUNCTION__, i);
+        i--;
+    }
+
+    multicore_launch_core1(core1_calc);
+    mandel<MTYPE> *m = new mandel<MTYPE>{nullptr, nullptr, 
+                                        static_cast<MTYPE>(INTIFY(-1.5)), static_cast<MTYPE>(INTIFY(-1.0)), 
+                                        static_cast<MTYPE>(INTIFY(0.5)), static_cast<MTYPE>(INTIFY(1.0)), 
+                                        IMG_W / PIXELW / 2, IMG_H, 1.0};
+
+    delete m;
+    while (1)
+    {   
+        printf("%s: done.\n", __FUNCTION__);
+        sleep_ms(1000);
+        tight_loop_contents();
+    }
 }
