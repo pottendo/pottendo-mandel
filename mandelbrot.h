@@ -33,6 +33,20 @@ typedef struct
     int y;
 } point_t;
 
+const std::vector<frec_t> frecs = {
+    {static_cast<MTYPE>(INTIFY(-1.500000)), static_cast<MTYPE>(INTIFY(-1.000000)), static_cast<MTYPE>(INTIFY( 0.500000)), static_cast<MTYPE>(INTIFY(1.000000))},
+    {static_cast<MTYPE>(INTIFY(-1.500000)), static_cast<MTYPE>(INTIFY(-1.000000)), static_cast<MTYPE>(INTIFY(-0.500000)), static_cast<MTYPE>(INTIFY(0.000000))},
+    {static_cast<MTYPE>(INTIFY(-1.000000)), static_cast<MTYPE>(INTIFY(-0.500000)), static_cast<MTYPE>(INTIFY(-0.506250)), static_cast<MTYPE>(INTIFY(-0.005000))},
+    {static_cast<MTYPE>(INTIFY(-1.000000)), static_cast<MTYPE>(INTIFY(-0.376250)), static_cast<MTYPE>(INTIFY(-0.876563)), static_cast<MTYPE>(INTIFY(-0.252500))},
+    {static_cast<MTYPE>(INTIFY(-0.938281)), static_cast<MTYPE>(INTIFY(-0.308187)), static_cast<MTYPE>(INTIFY(-0.907422)), static_cast<MTYPE>(INTIFY(-0.277250))},
+    {static_cast<MTYPE>(INTIFY(-0.926709)), static_cast<MTYPE>(INTIFY(-0.296586)), static_cast<MTYPE>(INTIFY(-0.918994)), static_cast<MTYPE>(INTIFY(-0.288852))},
+    {static_cast<MTYPE>(INTIFY(-0.923816)), static_cast<MTYPE>(INTIFY(-0.292332)), static_cast<MTYPE>(INTIFY(-0.921887)), static_cast<MTYPE>(INTIFY(-0.290398))},
+    {static_cast<MTYPE>(INTIFY(-0.923093)), static_cast<MTYPE>(INTIFY(-0.291607)), static_cast<MTYPE>(INTIFY(-0.922610)), static_cast<MTYPE>(INTIFY(-0.291124))},
+    {static_cast<MTYPE>(INTIFY(-0.922912)), static_cast<MTYPE>(INTIFY(-0.291426)), static_cast<MTYPE>(INTIFY(-0.922791)), static_cast<MTYPE>(INTIFY(-0.291305))},
+    {static_cast<MTYPE>(INTIFY(-0.922882)), static_cast<MTYPE>(INTIFY(-0.291395)), static_cast<MTYPE>(INTIFY(-0.922852)), static_cast<MTYPE>(INTIFY(-0.291365))},
+    {static_cast<MTYPE>(INTIFY(-0.922859)), static_cast<MTYPE>(INTIFY(-0.291384)), static_cast<MTYPE>(INTIFY(-0.922852)), static_cast<MTYPE>(INTIFY(-0.291377))}
+    };
+
 #ifdef PTHREADS
 #include <pthread.h>
 #if defined(ESP32)
@@ -498,7 +512,7 @@ class mandel
         P(pcmutex);
         p = pcbuffer[pcout];
         pcout = ((pcout+1) % PCBUFFER_SIZE);
-        V(pcmutex);
+        V(pcmutex);        
         VSem(pcempty);
         return 0;
     }
@@ -726,15 +740,12 @@ public:
     mandel(canvas_t c, char *st, myDOUBLE xl, myDOUBLE yl, myDOUBLE xh, myDOUBLE yh, int xr, int yr, myDOUBLE xrat = 1.0)
         : canvas(c), stacks(st), xres(xr), yres(yr), xratio(xrat), stop(0)
     {
+	    init_palette(col_pal);
 #if defined(__linux__) || defined(LUCKFOX)
-	luckfox_palette(col_pal);
 	int c1 = 0;
 	for (int i = 0; i < xr - 2; i += 2, c1++)
 	    luckfox_rect(c, i, 0, i+1, yr - 1 , col_pal[c1]);
     zoom_ui(this);
-#else	
-        for (int i = 0; i < PAL_SIZE; i++)
-            col_pal[i] = i;
 #endif	
         _mask = 1;
         for (int i = 1; i < PIXELW; i++)
@@ -744,7 +755,7 @@ public:
 
         pthread_mutex_init(&canvas_sem, nullptr);
         sem_init(&master_sem, 0, 0);
-        action(xl, yl, xh, yh);
+        //action(xl, yl, xh, yh);
     }
 
     ~mandel()

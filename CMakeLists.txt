@@ -1,7 +1,8 @@
 
 # for pico under VSCode - run "cmake -G Ninja -B build"
-#set(TARGETX pico)
+#set(TARGETX linux)
 set(TARGETX $ENV{TARGET})
+
 if(${TARGETX}x STREQUAL "luckfoxx")
 set(SDK_PATH $ENV{LUCKFOX_SDK_PATH})
 if(NOT SDK_PATH)
@@ -19,7 +20,12 @@ set(COPTS "-I${SYSROOT}/include")
 set(ARCHSRC "mandel-luckfox.cpp")
 set(TSLIBS "ts")
 
-elseif(${TARGETX}x STREQUAL "picox")
+elseif(${TARGETX}x STREQUAL "linuxx")
+set(ARCHSRC "mandel-luckfox.cpp")
+set(THREAD -DPTHREADS)
+
+else()
+message("BUILDING FOR PICO - (for linux: TARGET=linux cmake ..)")
 # == DO NOT EDIT THE FOLLOWING LINES for the Raspberry Pi Pico VS Code Extension to work ==
 if(WIN32)
     set(USERHOME $ENV{USERPROFILE})
@@ -48,9 +54,6 @@ include(pico_sdk_import.cmake)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 add_compile_definitions(-DPICO)
-else()
-set(ARCHSRC "mandel-luckfox.cpp")
-set(THREAD -DPTHREADS)
 endif()
 
 message(STATUS "target = " ${TARGETX} ${PICOLIBS})
@@ -62,19 +65,21 @@ project(mandel C CXX ASM)
 set(SRC_FILES mandel.cpp ${ARCHSRC})
 add_executable(${PROJECT_NAME} ${SRC_FILES})
 
-if (NOT ${TARGETX}x STREQUAL "picox")
+if (NOT ${TARGETX}x STREQUAL "x")
 #Opencv 4 
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 else()
+
 pico_sdk_init()
+pico_enable_stdio_usb(mandel 1)
+pico_enable_stdio_uart(mandel 0)
 add_subdirectory(${TFTLIB} build)
 
 pico_set_program_name(${PROJECT_NAME} ${PROJECT_NAME})
 pico_set_program_version(${PROJECT_NAME} "0.1")
 pico_add_extra_outputs(${PROJECT_NAME})
 endif()
-
 
 target_link_libraries(${PROJECT_NAME}
     ${PICOLIBS}

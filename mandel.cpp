@@ -63,12 +63,57 @@ typedef struct
     point_t rd;
 } rec_t;
 
-typedef struct {
-    MTYPE xl;
-    MTYPE yl;
-    MTYPE xh;
-    MTYPE yh;
-} frec_t;
+void init_palette(int *col_pal)
+{
+#if 0    
+    int c = 0;
+    memset(col_pal, 0, 1024);
+    for (int i = 0; i < 32; i++)
+	col_pal[i] = i;
+    col_pal[32] = 65535;
+    c = 0;
+    for (int i = 33; i < (33 + 64 + 1); i++, c++)
+	col_pal[i] = (c<<5);
+    col_pal[32 + 64 + 1] = 65535;
+    c = 0;
+    for (int i = 33+64 + 2; i < (33 + 64 + 32 + 2); i++, c++)
+	col_pal[i] = (c<<11);
+        
+    return;
+#endif
+#if defined(COL16BIT)
+    uint16_t i, t;
+    for (i = 0; i < 16; i++)
+    {
+        t = i << 1;
+        col_pal[i] = t;
+        col_pal[16 + i] = (31 - col_pal[i]) | (t << 6);
+        col_pal[32 + i] = ((31 << 6) - (t << 6)) | (t << 11);
+        col_pal[48 + i] = ((31 << 11) - (t << 11));
+    }
+    for (i = 1; i < 15; i++)
+    {
+        memcpy(col_pal + i * 64, col_pal, sizeof(uint16_t) * 64);
+    }
+#elif defined(COL32BIT)
+    int i, t;
+    for (i = 0; i < 128; i++)
+    {
+        t = i << 1;
+        col_pal[i] = t;
+        col_pal[128 + i] = ((255 - t) | (t << 8));
+        col_pal[256 + i] = ((255 - t) << 8) | (t << 16);
+        col_pal[384 + i] = ((255 - t) << 16);
+    }
+    for (i = 1; i < 4; i++)
+    {
+        //memcpy(col_pal + i * 512, col_pal, sizeof(int) * 512);
+    }
+#else
+    for (auto i = 0; i < PAL_SIZE; i++)
+        col_pal[i] = i;
+#endif
+}
 
 #if !defined(__ZEPHYR__) && !defined(PICO) && !defined(ESP32) && !defined(ESP8266)
 int main(int argc, char *argv[])
@@ -137,6 +182,8 @@ int main(void)
 #ifdef PTHREADS
     pthread_mutex_init(&logmutex, NULL);
 #endif
+    stacks = alloc_stack;
+    cv = setup_screen();
     log_msg("Welcome mandelbrot...\n");
     log_msg("blending %sactivated\n", blend ? "" : "de");
     log_msg("resolution set: %dx%d\n", IMG_W, IMG_H);
@@ -146,8 +193,6 @@ int main(void)
         (do_mq == 1) ? "message queue sync" :
         (do_mq > 1) ? "producer consumer sync": "unknown");
 #endif        
-    stacks = alloc_stack;
-    cv = setup_screen();
     if (!cv) cv = alloc_canvas;
     log_msg("%s: stack_size per thread = %d, no threads=%d, iter = %d, palsize = %ld, stacks = %p, cv = %p, CSIZE = %d\n", 
         __FUNCTION__, STACK_SIZE, NO_THREADS, iter, PAL_SIZE, stacks, cv, CSIZE);
@@ -165,20 +210,6 @@ std::vector<rec_t> recs = {
         {{120,75}, {159, 125}},
     };
 
-const std::vector<frec_t> frecs = {
-    //{-1.500000, -1.000000, 0.500000, 1.000000},
-    {static_cast<MTYPE>(INTIFY(-1.500000)), static_cast<MTYPE>(INTIFY(-1.000000)), static_cast<MTYPE>(INTIFY(-0.500000)), static_cast<MTYPE>(INTIFY(0.000000))},
-    {static_cast<MTYPE>(INTIFY(-1.000000)), static_cast<MTYPE>(INTIFY(-0.500000)), static_cast<MTYPE>(INTIFY(-0.506250)), static_cast<MTYPE>(INTIFY(-0.005000))},
-    {static_cast<MTYPE>(INTIFY(-1.000000)), static_cast<MTYPE>(INTIFY(-0.376250)), static_cast<MTYPE>(INTIFY(-0.876563)), static_cast<MTYPE>(INTIFY(-0.252500))},
-    {static_cast<MTYPE>(INTIFY(-0.938281)), static_cast<MTYPE>(INTIFY(-0.308187)), static_cast<MTYPE>(INTIFY(-0.907422)), static_cast<MTYPE>(INTIFY(-0.277250))},
-    {static_cast<MTYPE>(INTIFY(-0.926709)), static_cast<MTYPE>(INTIFY(-0.296586)), static_cast<MTYPE>(INTIFY(-0.918994)), static_cast<MTYPE>(INTIFY(-0.288852))},
-    {static_cast<MTYPE>(INTIFY(-0.923816)), static_cast<MTYPE>(INTIFY(-0.292332)), static_cast<MTYPE>(INTIFY(-0.921887)), static_cast<MTYPE>(INTIFY(-0.290398))},
-    {static_cast<MTYPE>(INTIFY(-0.923093)), static_cast<MTYPE>(INTIFY(-0.291607)), static_cast<MTYPE>(INTIFY(-0.922610)), static_cast<MTYPE>(INTIFY(-0.291124))},
-    {static_cast<MTYPE>(INTIFY(-0.922912)), static_cast<MTYPE>(INTIFY(-0.291426)), static_cast<MTYPE>(INTIFY(-0.922791)), static_cast<MTYPE>(INTIFY(-0.291305))},
-    {static_cast<MTYPE>(INTIFY(-0.922882)), static_cast<MTYPE>(INTIFY(-0.291395)), static_cast<MTYPE>(INTIFY(-0.922852)), static_cast<MTYPE>(INTIFY(-0.291365))},
-    {static_cast<MTYPE>(INTIFY(-0.922859)), static_cast<MTYPE>(INTIFY(-0.291384)), static_cast<MTYPE>(INTIFY(-0.922852)), static_cast<MTYPE>(INTIFY(-0.291377))}
-    };
-
 #endif
     for (;;)
     {
@@ -189,7 +220,7 @@ const std::vector<frec_t> frecs = {
                                             IMG_W / PIXELW, IMG_H, xrat};
         zoom_ui(m);
         
-        for (size_t i = 0; i < recs.size(); i++)
+        for (size_t i = 0; i < frecs.size(); i++)
         {
             auto it = &frecs[i];
             m->zoom(it->xl, it->yl, it->xh, it->yh);

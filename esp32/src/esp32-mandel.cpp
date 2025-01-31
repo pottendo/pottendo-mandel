@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include "mandel-arch.h"
+#ifndef HELTEC
 #include "esp_system.h"
+#endif
 int main(void);
 
 void esp32_showstat(void)
@@ -173,6 +175,7 @@ void esp32_zoomui(mandel<MTYPE> *m)
 
 #elif defined(HELTEC)
 #include "heltec.h"
+
 void setup(void)
 {
     Heltec.begin(true /*DisplayEnable Enable*/, true /*Serial Enable*/);
@@ -288,13 +291,18 @@ int esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
 
 void esp32_zoomui(mandel<MTYPE> *m)
 {
-    obd.display();
-    esp32_showstat();
-    delay(3*1000);
+    for (size_t i = 0; i < frecs.size(); i++)
+    {
+        auto it = &frecs[i];
+        m->zoom(it->xl, it->yl, it->xh, it->yh);
+        obd.display();
+        esp32_showstat();
+        delay(3*1000);
+        obd.fillScreen(0);
+        obd.display();
+    }
     while(1)
         sleep(1);
-    obd.fillScreen(0);
-    obd.display();
 }
 
 void setup(void)
@@ -393,10 +401,15 @@ void setup(void)
 
 void esp32_zoomui(mandel<MTYPE> *m)
 {
-    dma_display.flush();
-    dma_display.flipDMABuffer();
-    esp32_showstat();
-    delay(5 * 1000);
+    for (size_t i = 0; i < frecs.size(); i++)
+    {
+        auto it = &frecs[i];
+        m->zoom(it->xl, it->yl, it->xh, it->yh);
+        dma_display.flush();
+        dma_display.flipDMABuffer();
+        esp32_showstat();
+        delay(5 * 1000);
+    }
 }
 #elif TTGO
 #include <TFT_eSPI.h> // Graphics and font library for ST7735 driver chip
@@ -424,6 +437,9 @@ void setup(void)
     iter = 241;
     img_h = TFT_WIDTH;
     img_w = TFT_HEIGHT;
+    Serial.println("bla");
+    Serial.printf("%s: entering main...\n", __FUNCTION__);
+    delay(1000);
     main();
 }
 
@@ -455,5 +471,6 @@ void esp32_zoomui(mandel<MTYPE> *m)
 #endif
 void loop(void)
 {
+    Serial.println("loop...");
     delay(10 * 1000);
 }

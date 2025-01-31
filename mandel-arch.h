@@ -23,6 +23,8 @@
 #define alloc_canvas new CANVAS_TYPE[CSIZE]()
 
 void log_msg(const char *s, ...);
+void init_palette(int *p);
+
 #if !defined(AMIGA_HACK)
 void log_msg(int lv, const char *s, ...);
 #endif
@@ -49,6 +51,14 @@ extern int do_mq;
 #endif
 #define MAX_ITER iter   // relict
 extern int iter;
+
+#include <vector>
+typedef struct {
+    MTYPE xl;
+    MTYPE yl;
+    MTYPE xh;
+    MTYPE yh;
+} frec_t;
 
 #if defined(__amiga__) //-------------------------------------------------------------------
 #include <proto/exec.h>
@@ -117,12 +127,13 @@ void amiga_zoom_ui(mandel<MTYPE> *m);
 #define VIDEO_CAPTURE
 #define CANVAS_TYPE uint32_t
 #define CVCOL CV_8UC4
+#define COL32BIT
 #endif
 //#define BENCHMARK
 #define IMG_W img_w
 #define IMG_H img_h
 //#define SCRDEPTH 24  // or 6 for 64cols lesser resolution
-#define PAL_SIZE (512 * 16)
+#define PAL_SIZE (512 * sizeof(CANVAS_TYPE))
 #define PIXELW 1
 #define CSIZE (img_w * img_h) /// 8
 #ifndef PTHREAD_STACK_MIN
@@ -134,7 +145,6 @@ void amiga_zoom_ui(mandel<MTYPE> *m);
 extern CANVAS_TYPE *tft_canvas;		// must not be static?!
 int luckfox_setpx(CANVAS_TYPE *canvas, int x, int y, int c);
 CANVAS_TYPE *init_luckfox(void);
-void luckfox_palette(int *p);
 void luckfox_rect(CANVAS_TYPE *c, int x1, int y1, int x2, int y2, int col);
 #define zoom_ui luckfox_play
 #define setup_screen init_luckfox
@@ -188,9 +198,9 @@ extern char *c64_screen_init(void);
 #define COL16BIT
 #define TOUCH
 #define CANVAS_TYPE uint16_t
-#define IMG_W 240
+#define IMG_W 320
 #define IMG_H 240
-#define PAL_SIZE (512 * 16)
+#define PAL_SIZE (512 * sizeof(CANVAS_TYPE))
 #define PIXELW 1
 #define CSIZE (IMG_W * IMG_H)
 

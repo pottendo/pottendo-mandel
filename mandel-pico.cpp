@@ -67,7 +67,7 @@ void pico_set_led(bool led_on)
 #endif
 }
 
-static mutex_t mutex;
+static mutex_t mutex, c0_mutex, c1_mutex;
 
 static UG_GUI gui;
 CANVAS_TYPE *pico_init(void) 
@@ -85,8 +85,9 @@ CANVAS_TYPE *pico_init(void)
     //ts_spi_setup();
 
     fill_screen(0x0000);
-    UG_Init(&gui, pixel_set, 240, 240);
+    UG_Init(&gui, pixel_set, IMG_H, IMG_W);
 
+    iter = 241;
     return NULL;
 }
 
@@ -96,20 +97,47 @@ int pico_setpx(CANVAS_TYPE *canvas, int x, int y, int c)
     mutex_enter_blocking(&mutex);
     if (canvas)
         offs = IMG_W / 2;
-    UG_DrawPixel(x + offs, y, c);
+    UG_DrawPixel(y, x + offs, c);
     mutex_exit(&mutex);
     return 0;
 }
 
-//extern const std::vector<frec_t> frecs;
-
-void core1_calc(void)
+void do_calc(int core)
 {
-    mandel<MTYPE> *m = new mandel<MTYPE>{(CANVAS_TYPE *)1, nullptr, 
+    mutex_t *mine, *other;
+    mandel<MTYPE> *m = new mandel<MTYPE>{(CANVAS_TYPE *)core, nullptr, 
                                         static_cast<MTYPE>(INTIFY(-1.5)), static_cast<MTYPE>(INTIFY(-1.0)), 
                                         static_cast<MTYPE>(INTIFY(0.5)), static_cast<MTYPE>(INTIFY(1.0)), 
                                         IMG_W / PIXELW / 2, IMG_H, 1.0};
+    
+    if (core)
+    {
+        mine = &c1_mutex;
+        other = &c0_mutex;
+    } else {
+        mine = &c0_mutex;
+        other = &c1_mutex;
+    }
+    mutex_init(mine);
+    mutex_enter_blocking(mine);
+    while (1)
+    {
+        for (size_t i = 0; i < frecs.size(); i++)
+        {
+            auto it = &frecs[i];
+            auto x2 = (it->xh - it->xl) / 2;
+            m->zoom(it->xl + x2 * core, it->yl, it->xl + x2 + x2 * core, it->yh);
+            mutex_exit(other);
+            mutex_enter_blocking(mine);
+            sleep_ms(3000);
+        }
+    }
     delete m;
+}
+
+void core1_calc(void)
+{
+    do_calc(1);
     while (1)
     {   
         printf("%s: done.\n", __FUNCTION__);
@@ -120,21 +148,16 @@ void core1_calc(void)
 
 void pico_hook1(void)
 {
-    int i = 5;
-    while(i)
+#if 0    
+    int i = 10;
+    while (i--)
     {
         sleep_ms(1000);
-        printf("%s: counting %i\n", __FUNCTION__, i);
-        i--;
+        printf("counting %d, frecs = %d\n", i, frecs.size());
     }
-
+#endif    
     multicore_launch_core1(core1_calc);
-    mandel<MTYPE> *m = new mandel<MTYPE>{nullptr, nullptr, 
-                                        static_cast<MTYPE>(INTIFY(-1.5)), static_cast<MTYPE>(INTIFY(-1.0)), 
-                                        static_cast<MTYPE>(INTIFY(0.5)), static_cast<MTYPE>(INTIFY(1.0)), 
-                                        IMG_W / PIXELW / 2, IMG_H, 1.0};
-
-    delete m;
+    do_calc(0);
     while (1)
     {   
         printf("%s: done.\n", __FUNCTION__);

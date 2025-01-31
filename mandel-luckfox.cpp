@@ -54,55 +54,6 @@ CANVAS_TYPE *init_luckfox(void)
     return tft_canvas;
 }
 
-void luckfox_palette(int *col_pal)
-{
-#if 0    
-    int c = 0;
-    memset(col_pal, 0, 1024);
-    for (int i = 0; i < 32; i++)
-	col_pal[i] = i;
-    col_pal[32] = 65535;
-    c = 0;
-    for (int i = 33; i < (33 + 64 + 1); i++, c++)
-	col_pal[i] = (c<<5);
-    col_pal[32 + 64 + 1] = 65535;
-    c = 0;
-    for (int i = 33+64 + 2; i < (33 + 64 + 32 + 2); i++, c++)
-	col_pal[i] = (c<<11);
-        
-    return;
-#endif
-#ifdef COL16BIT
-    uint16_t i, t;
-    for (i = 0; i < 16; i++)
-    {
-        t = i << 1;
-        col_pal[i] = t;
-        col_pal[16 + i] = (31 - col_pal[i]) | (t << 6);
-        col_pal[32 + i] = ((31 << 6) - (t << 6)) | (t << 11);
-        col_pal[48 + i] = ((31 << 11) - (t << 11));
-    }
-    for (i = 1; i < 15; i++)
-    {
-        memcpy(col_pal + i * 64, col_pal, sizeof(uint16_t) * 64);
-    }
-#else
-    int i, t;
-    for (i = 0; i < 128; i++)
-    {
-        t = i << 1;
-        col_pal[i] = t;
-        col_pal[128 + i] = ((255 - t) | (t << 8));
-        col_pal[256 + i] = ((255 - t) << 8) | (t << 16);
-        col_pal[384 + i] = ((255 - t) << 16);
-    }
-    for (i = 1; i < 4; i++)
-    {
-        //memcpy(col_pal + i * 512, col_pal, sizeof(int) * 512);
-    }
-#endif
-}
-
 void luckfox_rect(CANVAS_TYPE *cv, int x1, int y1, int x2, int y2, int c)
 {
     for (int x = x1; x <= x2; x++)
