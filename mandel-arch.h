@@ -27,6 +27,7 @@ void init_palette(int *p);
 
 #if !defined(AMIGA_HACK)
 void log_msg(int lv, const char *s, ...);
+#include <vector>
 #endif
 //#define NO_LOG
 #ifdef NO_LOG
@@ -52,7 +53,6 @@ extern int do_mq;
 #define MAX_ITER iter   // relict
 extern int iter;
 
-#include <vector>
 typedef struct {
     MTYPE xl;
     MTYPE yl;

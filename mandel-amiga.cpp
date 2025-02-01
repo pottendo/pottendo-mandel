@@ -469,6 +469,7 @@ void amiga_zoom_ui(mandel<MTYPE> *m)
 {
     uint16_t stx = 0, sty = 10;
     bool closewin = FALSE;
+    m->zoom(frecs[0].xl, frecs[0].yl,frecs[0].xh,frecs[0].yh);
     while (closewin == FALSE)
     {
 #ifndef PTHREADS
