@@ -16,9 +16,12 @@ struct ts_sample samp;
 #endif
 #include <time.h>
 extern void log_msg(const char *s, ...);
+#define WINNAME "fb"
+mandel<MTYPE> *mp;
 
 CANVAS_TYPE *tft_canvas; // must not be static?!
-extern int img_w, img_h;
+extern int img_w, img_h, dwell_time;
+extern bool zoom_mode;
 
 CANVAS_TYPE *init_luckfox(void)
 {
@@ -132,7 +135,6 @@ cv::Mat rgb565ToCV8UC3(const cv::Mat& input) {
             output.at<cv::Vec3b>(y, x) = cv::Vec3b(b, g, r);
         }
     }
-
     return output;
 }
 
@@ -173,7 +175,44 @@ void luckfox_zoom(mandel<MTYPE> *m, struct ts_sample *samp)
 }
 
 #else
-#define setup_ts(...)
+
+void luckfox_zoom(mandel<MTYPE> *m, int lx, int ly, int rx, int ry)
+{
+    if ((lx == rx) || (ly == ry))
+        return;
+    point_t lu{lx, ly}, rd{rx, ry};
+    //log_msg("%s: selected: [%d,%d] x [%d, %d]\n", __FUNCTION__, lx, ly, rx, ry);
+    m->select_start(lu);
+    m->select_end(rd);
+}
+
+void mouseCallback(int event, int x, int y, int flags, void *userdata)
+{
+    static int lx, ly, rx, ry;
+    if (event == cv::EVENT_LBUTTONDOWN) 
+    {
+        lx = x; ly=y;
+        //log_msg("%s: lbutton down @%d,%d\n", __FUNCTION__, x, y);
+    }
+    else if (event == cv::EVENT_MOUSEMOVE)
+    {
+        // log_msg("%s: move @%d,%d\n", __FUNCTION__, x, y);
+    }
+    else if (event == cv::EVENT_LBUTTONUP)
+    {
+        rx = x; ry = y;
+        //log_msg("%s: lbutton up @%d,%d\n", __FUNCTION__, x, y)
+        luckfox_zoom(mp, lx, ly, rx, ry);
+    }
+}
+
+void setup_ts(void)
+{
+    cv::namedWindow(WINNAME);
+    cv::setMouseCallback(WINNAME, mouseCallback, nullptr);
+}
+
+
 #endif	
 //#include <iostream>
    /* class private functions */
@@ -197,7 +236,8 @@ void *vstream(void *arg)
 {
     mandel<MTYPE> *m = static_cast<mandel<MTYPE> *>(arg);
     is_running = true;
-
+    mp = m;
+    setup_ts();
     if (!blend)
     {
         cv::Mat i;
@@ -217,7 +257,7 @@ void *vstream(void *arg)
 #endif
             i = cv::Mat(IMG_H, IMG_W, CVCOL, m->get_canvas());
             cv::cvtColor(i, i, cv::COLOR_BGR2RGB);
-            cv::imshow("fb", i);
+            cv::imshow(WINNAME, i);
 #ifndef LUCKFOX
             cv::waitKey(1);
 #endif
@@ -275,7 +315,7 @@ void *vstream(void *arg)
 #endif
         if ((img_w != bgr.cols) || (img_h != bgr.rows))
             cv::resize(bgr, bgr, cv::Size(img_w, img_h));
-        cv::imshow("fb", bgr);
+        cv::imshow(WINNAME, bgr);
         mmask = 0;
 #ifndef LUCKFOX
         cv::waitKey(1);
@@ -308,10 +348,11 @@ void luckfox_play(mandel<MTYPE> *mandel)
             cv::cvtColor(out, out, cv::COLOR_RGB2BGR);
 #endif
         }
-        setup_ts();
+        //setup_ts();
 
         if (pthread_create(&vt, NULL, vstream, (void *)mandel) < 0)
             log_msg("%s: pthread_create failed for opencv blending thread, %d\n", __FUNCTION__, errno);
+        return;
     }
 
 #else
@@ -320,10 +361,11 @@ void luckfox_play(mandel<MTYPE> *mandel)
 #else
     cv::Mat img = convert24bitBGRtoCV8UC3(mask, img_w, img_h);
 #endif
-    cv::imshow("Mandelbrot", img);
+    cv::imshow(WINNAME, img);
 
 #endif
     //cv::waitKey(0);
-//    while(1) 
-    sleep(3);
+    while(zoom_mode) 
+        sleep(3);
+    sleep(dwell_time);
 }

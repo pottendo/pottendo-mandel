@@ -51,6 +51,8 @@ int img_w = 800, img_h=480;   // used by luckfox
 int iter = MAX_ITER_INIT;     // used by Amiga
 int video_device, blend, do_mq = MANDEL_PC;      // used by opencv
 MTYPE xrat = 1.0;
+bool zoom_mode = false;
+int dwell_time = 3;
 
 static CANVAS_TYPE *cv;
 static char *stacks;
@@ -121,7 +123,7 @@ int main(int argc, char *argv[])
     if (argc > 1)
     {
         char opt;
-        while ((opt = getopt(argc, argv, "i:l:bq:v:r:h")) != (char)-1)
+        while ((opt = getopt(argc, argv, "i:l:bzq:v:r:t:h")) != (char)-1)
         {
             switch (opt)
             {
@@ -149,6 +151,12 @@ int main(int argc, char *argv[])
                 iter = strtol(optarg, NULL, 10);
                 if (iter < 16) { iter = 16; break; }
                 break;
+            case 'z':
+                zoom_mode = 1;
+                break;
+            case 't':
+                dwell_time = strtol(optarg, NULL, 10);
+                break;
             case 'r':
                 if (optarg)
                 {
@@ -164,7 +172,8 @@ int main(int argc, char *argv[])
             case 'h':
             case '?':
                 // Print help message and exit
-                printf("Usage: %s [-b] [-q <0|1|2> select thread policy] [-v <video device nr>] [-r resolution in form <XxY> (e.g.: -r 800x480) -l <loglevel> -i <iter depth>]\n", argv[0]);
+                printf("Usage: %s [-b] [-q <0|1|2> select thread policy] [-v <video device nr>]"
+                        " [-r resolution in form <XxY> (e.g.: -r 800x480) -l <loglevel> -i <iter depth> -z -t <dwell time>]\n", argv[0]);
                 return 0;
             default:
                 fprintf(stderr, "Unexpected error in getopt: %c/%d\n", (isprint(opt)?opt:'.'), opt);

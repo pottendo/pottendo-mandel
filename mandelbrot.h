@@ -34,7 +34,23 @@ typedef struct
 } point_t;
 
 const std::vector<frec_t> frecs = {
-    {static_cast<MTYPE>(INTIFY(-1.500000)), static_cast<MTYPE>(INTIFY(-1.000000)), static_cast<MTYPE>(INTIFY( 0.500000)), static_cast<MTYPE>(INTIFY(1.000000))},
+    {static_cast<MTYPE>(INTIFY(-1.500000)), static_cast<MTYPE>(INTIFY(-1.000000)), static_cast<MTYPE>(INTIFY(0.500000)), static_cast<MTYPE>(INTIFY(1.000000))},
+   	{static_cast<MTYPE>(INTIFY(-0.712500)), static_cast<MTYPE>(INTIFY(0.350000)), static_cast<MTYPE>(INTIFY(-0.545000)), static_cast<MTYPE>(INTIFY(0.470833))},
+	{static_cast<MTYPE>(INTIFY(-0.649478)), static_cast<MTYPE>(INTIFY(0.397578)), static_cast<MTYPE>(INTIFY(-0.631681)), static_cast<MTYPE>(INTIFY(0.410668))},
+	{static_cast<MTYPE>(INTIFY(-0.643093)), static_cast<MTYPE>(INTIFY(0.401860)), static_cast<MTYPE>(INTIFY(-0.640224)), static_cast<MTYPE>(INTIFY(0.403660))},
+	{static_cast<MTYPE>(INTIFY(-0.642477)), static_cast<MTYPE>(INTIFY(0.402538)), static_cast<MTYPE>(INTIFY(-0.642082)), static_cast<MTYPE>(INTIFY(0.402782))},
+	{static_cast<MTYPE>(INTIFY(-0.642258)), static_cast<MTYPE>(INTIFY(0.402660)), static_cast<MTYPE>(INTIFY(-0.642214)), static_cast<MTYPE>(INTIFY(0.402682))},
+	{static_cast<MTYPE>(INTIFY(-0.642249)), static_cast<MTYPE>(INTIFY(0.402669)), static_cast<MTYPE>(INTIFY(-0.642237)), static_cast<MTYPE>(INTIFY(0.402675))},
+	{static_cast<MTYPE>(INTIFY(-0.642245)), static_cast<MTYPE>(INTIFY(0.402670)), static_cast<MTYPE>(INTIFY(-0.642242)), static_cast<MTYPE>(INTIFY(0.402672))},
+    {static_cast<MTYPE>(INTIFY(-1.500000)), static_cast<MTYPE>(INTIFY(-1.000000)), static_cast<MTYPE>(INTIFY(0.500000)), static_cast<MTYPE>(INTIFY(1.000000))},
+    {static_cast<MTYPE>(INTIFY(-1.350000)), static_cast<MTYPE>(INTIFY(-0.483333)), static_cast<MTYPE>(INTIFY(-1.022500)), static_cast<MTYPE>(INTIFY(-0.200000))},
+    {static_cast<MTYPE>(INTIFY(-1.266078)), static_cast<MTYPE>(INTIFY(-0.390660)), static_cast<MTYPE>(INTIFY(-1.243153)), static_cast<MTYPE>(INTIFY(-0.374132))},
+    {static_cast<MTYPE>(INTIFY(-1.256163)), static_cast<MTYPE>(INTIFY(-0.384393)), static_cast<MTYPE>(INTIFY(-1.253040)), static_cast<MTYPE>(INTIFY(-0.381879))},
+    {static_cast<MTYPE>(INTIFY(-1.254211)), static_cast<MTYPE>(INTIFY(-0.383115)), static_cast<MTYPE>(INTIFY(-1.253535)), static_cast<MTYPE>(INTIFY(-0.382529))},
+    {static_cast<MTYPE>(INTIFY(-1.253829)), static_cast<MTYPE>(INTIFY(-0.382716)), static_cast<MTYPE>(INTIFY(-1.253701)), static_cast<MTYPE>(INTIFY(-0.382611))},
+    {static_cast<MTYPE>(INTIFY(-1.253755)), static_cast<MTYPE>(INTIFY(-0.382667)), static_cast<MTYPE>(INTIFY(-1.253742)), static_cast<MTYPE>(INTIFY(-0.382659))},
+    {static_cast<MTYPE>(INTIFY(-1.253749)), static_cast<MTYPE>(INTIFY(-0.382663)), static_cast<MTYPE>(INTIFY(-1.253747)), static_cast<MTYPE>(INTIFY(-0.382662))},
+    {static_cast<MTYPE>(INTIFY(-1.500000)), static_cast<MTYPE>(INTIFY(-1.000000)), static_cast<MTYPE>(INTIFY(0.500000)), static_cast<MTYPE>(INTIFY(1.000000))},
     {static_cast<MTYPE>(INTIFY(-1.500000)), static_cast<MTYPE>(INTIFY(-1.000000)), static_cast<MTYPE>(INTIFY(-0.500000)), static_cast<MTYPE>(INTIFY(0.000000))},
     {static_cast<MTYPE>(INTIFY(-1.000000)), static_cast<MTYPE>(INTIFY(-0.500000)), static_cast<MTYPE>(INTIFY(-0.506250)), static_cast<MTYPE>(INTIFY(-0.005000))},
     {static_cast<MTYPE>(INTIFY(-1.000000)), static_cast<MTYPE>(INTIFY(-0.376250)), static_cast<MTYPE>(INTIFY(-0.876563)), static_cast<MTYPE>(INTIFY(-0.252500))},
@@ -44,8 +60,7 @@ const std::vector<frec_t> frecs = {
     {static_cast<MTYPE>(INTIFY(-0.923093)), static_cast<MTYPE>(INTIFY(-0.291607)), static_cast<MTYPE>(INTIFY(-0.922610)), static_cast<MTYPE>(INTIFY(-0.291124))},
     {static_cast<MTYPE>(INTIFY(-0.922912)), static_cast<MTYPE>(INTIFY(-0.291426)), static_cast<MTYPE>(INTIFY(-0.922791)), static_cast<MTYPE>(INTIFY(-0.291305))},
     {static_cast<MTYPE>(INTIFY(-0.922882)), static_cast<MTYPE>(INTIFY(-0.291395)), static_cast<MTYPE>(INTIFY(-0.922852)), static_cast<MTYPE>(INTIFY(-0.291365))},
-    {static_cast<MTYPE>(INTIFY(-0.922859)), static_cast<MTYPE>(INTIFY(-0.291384)), static_cast<MTYPE>(INTIFY(-0.922852)), static_cast<MTYPE>(INTIFY(-0.291377))}
-    };
+    {static_cast<MTYPE>(INTIFY(-0.922859)), static_cast<MTYPE>(INTIFY(-0.291384)), static_cast<MTYPE>(INTIFY(-0.922852)), static_cast<MTYPE>(INTIFY(-0.291377))}};
 
 #ifdef PTHREADS
 #include <pthread.h>
@@ -741,7 +756,7 @@ public:
         : canvas(c), stacks(st), xres(xr), yres(yr), xratio(xrat), stop(0)
     {
 	    init_palette(col_pal);
-#if defined(__linux__) || defined(LUCKFOX)
+#if defined(__linuxX__) || defined(LUCKFOX)
 	int c1 = 0;
 	for (int i = 0; i < xr - 2; i += 2, c1++)
 	    luckfox_rect(c, i, 0, i+1, yr - 1 , col_pal[c1]);
@@ -776,7 +791,7 @@ public:
 #endif
         struct timespec dt;
         timespec_diff(&tend, &tstart, &dt);
-        log_msg("mandelbrot set done in: %lld.%06lds\n", (long long int)dt.tv_sec, dt.tv_nsec / 1000L);
+        if (!zoom_mode) log_msg("mandelbrot set done in: %lld.%06lds\n", (long long int)dt.tv_sec, dt.tv_nsec / 1000L);
     }
 
     void select_start(point_t &p)
@@ -798,7 +813,7 @@ public:
         if (mark_y2 < 0)
             mark_y2 = 0;
         // log_msg("rect coord: [%d,%d]x[%d,%d] - ssw=%d,ssh=%d,trx=%d,try=%d\n", mark_x1, mark_y1, mark_x2, mark_y2, ssw, ssh, transx, transy);
-        log_msg("rect coord: [%d,%d]x[%d,%d]\n", mark_x1, mark_y1, mark_x2, mark_y2);
+        //log_msg("rect coord: [%d,%d]x[%d,%d]\n", mark_x1, mark_y1, mark_x2, mark_y2);
         /*
                 mandel_setup(sqrt(NO_THREADS),
                              static_cast<myDOUBLE>(mark_x1 * ssw + transx),
@@ -825,7 +840,8 @@ public:
 
     void mandel_presetup(myDOUBLE sx, myDOUBLE sy, myDOUBLE tx, myDOUBLE ty)
     {
-        log_msg("zoom to {{%f,%f},{%f,%f}}\n", sx, sy, tx, ty);
+        log_msg("\t{static_cast<MTYPE>(INTIFY(%f)), static_cast<MTYPE>(INTIFY(%f)), static_cast<MTYPE>(INTIFY(%f)), static_cast<MTYPE>(INTIFY(%f))},\n", sx, sy, tx, ty);
+        
         last_xr = (tx - sx);
         last_yr = (ty - sy);
         ssw = last_xr / xres;

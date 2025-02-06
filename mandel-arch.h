@@ -52,6 +52,7 @@ extern int do_mq;
 #endif
 #define MAX_ITER iter   // relict
 extern int iter;
+extern bool zoom_mode;
 
 typedef struct {
     MTYPE xl;
