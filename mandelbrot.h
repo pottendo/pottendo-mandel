@@ -840,7 +840,7 @@ public:
 
     void mandel_presetup(myDOUBLE sx, myDOUBLE sy, myDOUBLE tx, myDOUBLE ty)
     {
-        log_msg("\t{static_cast<MTYPE>(INTIFY(%f)), static_cast<MTYPE>(INTIFY(%f)), static_cast<MTYPE>(INTIFY(%f)), static_cast<MTYPE>(INTIFY(%f))},\n", sx, sy, tx, ty);
+        log_msg("\t{static_cast<MTYPE>(INTIFY(%.24f)), static_cast<MTYPE>(INTIFY(%.24f)), static_cast<MTYPE>(INTIFY(%.24f)), static_cast<MTYPE>(INTIFY(%.24f))},\n", sx, sy, tx, ty);
         
         last_xr = (tx - sx);
         last_yr = (ty - sy);
