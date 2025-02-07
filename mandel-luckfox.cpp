@@ -138,6 +138,13 @@ cv::Mat rgb565ToCV8UC3(const cv::Mat& input) {
     return output;
 }
 
+static cv::VideoCapture cap;
+static cv::Mat bgr;
+static cv::Mat i;
+static cv::Mat disp, mmask, out, out2;
+static bool is_running = false;
+static pthread_mutex_t cv_mutex;
+
 #ifdef TOUCH
 struct tsdev *ts;
 
@@ -189,25 +196,45 @@ void luckfox_zoom(mandel<MTYPE> *m, int lx, int ly, int rx, int ry)
 void mouseCallback(int event, int x, int y, int flags, void *userdata)
 {
     static int lx, ly, rx, ry;
+    static bool bd = false;
     if (event == cv::EVENT_LBUTTONDOWN) 
     {
         lx = x; ly=y;
         //log_msg("%s: lbutton down @%d,%d\n", __FUNCTION__, x, y);
+        bd = true;
     }
-    else if (event == cv::EVENT_MOUSEMOVE)
+    if ((bd == true) && (event == cv::EVENT_MOUSEMOVE))
     {
-        // log_msg("%s: move @%d,%d\n", __FUNCTION__, x, y);
+        // log_msg("%s: move %d,%d/%d,%d\n", __FUNCTION__, lx, ly, x, y);
+        if (((x - lx) > 2) && ((y - ly) > 2))
+        {
+            cv::Point tl(lx, ly);
+            cv::Point lr(x, y);
+            cv::Scalar recCol(255, 255, 255);
+            double al = 0.5;
+            cv::Rect rec(tl, lr);
+            pthread_mutex_lock(&cv_mutex);
+            cv::Mat iroi = i(rec);
+            cv::Mat overlay = iroi.clone();
+            //log_msg("%s: ovl=%dx%d - rec=%d,%d\n", __FUNCTION__, overlay.cols, overlay.rows, rec.width, rec.height);
+            cv::rectangle(overlay, cv::Point(0, 0), cv::Point(rec.width, rec.height), recCol, cv::FILLED);
+            cv::addWeighted(overlay, al, iroi, 1 - al, 0, iroi);
+            imshow(WINNAME, i);
+            pthread_mutex_unlock(&cv_mutex);
+        }
     }
-    else if (event == cv::EVENT_LBUTTONUP)
+    if (event == cv::EVENT_LBUTTONUP)
     {
         rx = x; ry = y;
+        bd = false;
         //log_msg("%s: lbutton up @%d,%d\n", __FUNCTION__, x, y)
         luckfox_zoom(mp, lx, ly, rx, ry);
     }
 }
 
 void setup_ts(void)
-{
+{   
+    if (blend) return;  // zooming not supported in blending mode
     cv::namedWindow(WINNAME);
     cv::setMouseCallback(WINNAME, mouseCallback, nullptr);
 }
@@ -227,11 +254,6 @@ inline void timespec_diff(struct timespec *a, struct timespec *b, struct timespe
         }
 }
 
-static cv::VideoCapture cap;
-static cv::Mat bgr;
-static cv::Mat disp, mmask, out, out2;
-static bool is_running = false;
-
 void *vstream(void *arg)
 {
     mandel<MTYPE> *m = static_cast<mandel<MTYPE> *>(arg);
@@ -240,7 +262,6 @@ void *vstream(void *arg)
     setup_ts();
     if (!blend)
     {
-        cv::Mat i;
         while (1)
         {
 #ifdef TOUCH
@@ -255,9 +276,11 @@ void *vstream(void *arg)
                 memset(&samp, 0, sizeof(struct ts_sample));
             } 
 #endif
+            pthread_mutex_lock(&cv_mutex);
             i = cv::Mat(IMG_H, IMG_W, CVCOL, m->get_canvas());
             cv::cvtColor(i, i, cv::COLOR_BGR2RGB);
             cv::imshow(WINNAME, i);
+            pthread_mutex_unlock(&cv_mutex);
 #ifndef LUCKFOX
             cv::waitKey(1);
 #endif
@@ -349,7 +372,7 @@ void luckfox_play(mandel<MTYPE> *mandel)
 #endif
         }
         //setup_ts();
-
+        pthread_mutex_init(&cv_mutex, nullptr);
         if (pthread_create(&vt, NULL, vstream, (void *)mandel) < 0)
             log_msg("%s: pthread_create failed for opencv blending thread, %d\n", __FUNCTION__, errno);
         return;

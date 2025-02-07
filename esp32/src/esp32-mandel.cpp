@@ -65,7 +65,7 @@ void setup(void)
     esp32_showstat();
     img_w = display.width();
     img_h = display.height();
-    iter = 128;
+    iter = 512;
     main();
 }
 #elif defined(ULCD)
