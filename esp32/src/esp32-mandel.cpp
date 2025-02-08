@@ -476,7 +476,7 @@ void setup(void)
     pinMode(4, OUTPUT);
     digitalWrite(4, HIGH);
     lcd.clearDisplay();
-    iter = 241;
+    iter = 500;
     img_w = lcd.width();
     img_h = lcd.height();
     main();
