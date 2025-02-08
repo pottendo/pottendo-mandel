@@ -127,7 +127,7 @@ void setup(void)
     disableCore1WDT();
     esp32_showstat();
 
-    iter = 241;
+    iter = 500;
     img_w = EPD_7IN5_V2_WIDTH;
     img_h = EPD_7IN5_V2_HEIGHT;
 
@@ -448,7 +448,46 @@ void esp32_zoomui(mandel<MTYPE> *m)
     esp32_showstat();
     delay(5 * 1000);
 }
+#elif defined(ESP32NOKIA5110)
+#include <SPI.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_PCD8544.h>
+Adafruit_PCD8544 lcd = Adafruit_PCD8544(16, 17, 5, 18, 19);
 
+int esp32_setpx(CANVAS_TYPE *cv, int x, int y, int c)
+{
+    if (c & 1)
+    {
+        lcd.drawPixel(x, y, BLACK);
+        lcd.display();
+    }
+    return 0;
+}
+
+void setup(void)
+{
+    Serial.begin(115200);
+    disableCore0WDT();
+    disableCore1WDT();
+    esp32_showstat();
+    if (!lcd.begin())
+        log_msg("%s: lcd init failed\n", __FUNCTION__);
+    lcd.setContrast(50);
+    pinMode(4, OUTPUT);
+    digitalWrite(4, HIGH);
+    lcd.clearDisplay();
+    iter = 241;
+    img_w = lcd.width();
+    img_h = lcd.height();
+    main();
+}
+
+void esp32_zoomui(mandel<MTYPE> *m)
+{
+    esp32_showstat();
+    delay(5 * 1000);
+    lcd.clearDisplay();
+}
 #elif defined(ESP32CONSOLE)
 void setup(void)
 {
